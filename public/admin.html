@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin | Studio LR</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="admin-body">
+    <header class="site-header">
+      <a class="brand" href="/">
+        <img class="brand-logo" src="/assets/logo/logo-oficial.png" alt="Studio LR">
+        <span>
+          <strong>Studio LR</strong>
+          <small>Agenda</small>
+        </span>
+      </a>
+      <nav>
+        <a href="/">Site</a>
+        <button id="logoutButton" class="link-button" type="button">Sair</button>
+      </nav>
+    </header>
+
+    <main class="admin-main">
+      <section id="loginPanel" class="admin-login">
+        <form id="loginForm" class="login-card">
+          <div class="official-logo login-logo" aria-label="Studio LR">
+            <img src="/assets/logo/logo-oficial.png" alt="Studio LR">
+          </div>
+          <p class="eyebrow">Acesso Letícia</p>
+          <h1>Entrar na agenda</h1>
+          <p class="login-intro">Gerencie horários, confirmações e atendimentos em um painel simples.</p>
+          <label>
+            Senha
+            <input name="password" type="password" required>
+          </label>
+          <button class="button primary full" type="submit">Entrar</button>
+          <p id="loginMessage" class="form-message" role="status"></p>
+        </form>
+      </section>
+
+      <section id="adminPanel" class="admin-panel hidden">
+        <aside class="admin-sidebar" aria-label="Módulos administrativos">
+          <button class="admin-tab active" type="button" data-admin-module="dashboard">Dashboard</button>
+          <button class="admin-tab" type="button" data-admin-module="agenda">Agenda</button>
+          <button class="admin-tab" type="button" data-admin-module="servicos">Serviços e valores</button>
+          <button class="admin-tab" type="button" data-admin-module="clientes">Clientes</button>
+          <button class="admin-tab" type="button" data-admin-module="financeiro">Financeiro</button>
+          <button class="admin-tab" type="button" data-admin-module="horarios">Horários</button>
+          <button class="admin-tab" type="button" data-admin-module="galeria">Galeria</button>
+          <button class="admin-tab" type="button" data-admin-module="configuracoes">Configurações</button>
+        </aside>
+
+        <div class="admin-content">
+          <section class="admin-module" data-module-panel="dashboard">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Área administrativa</p>
+                <h1>Dashboard</h1>
+              </div>
+            </div>
+            <div id="dashboardCards" class="admin-summary-grid"></div>
+          </section>
+
+          <section class="admin-module hidden" data-module-panel="agenda">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Agenda</p>
+                <h1>Agenda do dia</h1>
+              </div>
+              <label>
+                Data
+                <input id="adminDate" type="date">
+              </label>
+            </div>
+
+            <div id="appointmentsList" class="appointments-list"></div>
+          </section>
+
+          <section class="admin-module hidden" data-module-panel="servicos">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Serviços</p>
+                <h1>Editar catálogo</h1>
+                <p class="section-subtitle">Altere o nome e o valor exibidos no site público.</p>
+              </div>
+            </div>
+            <div id="adminServicesList" class="admin-summary-grid"></div>
+          </section>
+
+          <section class="admin-module hidden" data-module-panel="clientes">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Clientes</p>
+                <h1>Base de clientes</h1>
+              </div>
+            </div>
+            <div id="clientsList" class="admin-summary-grid"></div>
+          </section>
+
+          <section class="admin-module hidden" data-module-panel="financeiro">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Financeiro</p>
+                <h1>Resumo financeiro</h1>
+              </div>
+            </div>
+            <div id="financeSummary" class="admin-summary-grid"></div>
+          </section>
+
+          <section class="admin-module hidden" data-module-panel="horarios">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Horários</p>
+                <h1>Disponibilidade</h1>
+              </div>
+            </div>
+            <div class="admin-grid">
+              <form id="blockDayForm" class="scheduler compact">
+                <h2>Bloquear dia</h2>
+                <label>
+                  Data
+                  <input name="date" type="date" required>
+                </label>
+                <label>
+                  Motivo
+                  <input name="reason" placeholder="Folga, curso, viagem">
+                </label>
+                <button class="button secondary full" type="submit">Bloquear</button>
+              </form>
+
+              <form id="extraSlotForm" class="scheduler compact">
+                <h2>Horário extra</h2>
+                <div class="form-row two">
+                  <label>
+                    Data
+                    <input name="date" type="date" required>
+                  </label>
+                  <label>
+                    Hora
+                    <input name="time" type="time" required>
+                  </label>
+                </div>
+                <label>
+                  Observação
+                  <input name="note" placeholder="Extra noturno">
+                </label>
+                <button class="button secondary full" type="submit">Adicionar</button>
+              </form>
+            </div>
+            <section class="settings-list">
+              <h2>Dias bloqueados e extras</h2>
+              <div id="settingsList"></div>
+            </section>
+          </section>
+
+          <section class="admin-module hidden" data-module-panel="galeria">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Galeria</p>
+                <h1>Fotos públicas</h1>
+              </div>
+            </div>
+            <div id="adminGalleryList" class="admin-summary-grid"></div>
+          </section>
+
+          <section class="admin-module hidden" data-module-panel="configuracoes">
+            <div class="admin-toolbar">
+              <div>
+                <p class="eyebrow">Configurações</p>
+                <h1>Sistema</h1>
+              </div>
+            </div>
+            <div id="configSummary" class="admin-summary-grid"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="/admin.js?v=servicos-fotos-duracao-1"></script>
+  </body>
+</html>
