@@ -145,7 +145,7 @@ nav a:hover,
   display: grid;
   align-items: center;
   padding: clamp(34px, 7vw, 78px) clamp(18px, 5vw, 72px);
-  background: var(--soft) url("/assets/servicos/gel-tips.jpg") center / cover;
+  background: var(--soft) url("/assets/optimized/servicos/gel-tips.jpg") center / cover;
 }
 
 .hero-video,
@@ -750,6 +750,44 @@ textarea:focus {
 .work-photo:hover img,
 .instagram-work-card:hover img {
   transform: scale(1.04);
+}
+
+.media-skeleton,
+.image-failed {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, rgba(201, 168, 106, 0.16), transparent 34%),
+    linear-gradient(135deg, var(--soft), var(--white));
+}
+
+.media-skeleton::before,
+.image-failed::before {
+  content: "LR";
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 1px solid rgba(201, 168, 106, 0.3);
+  border-radius: 999px;
+  color: var(--gold);
+  background: rgba(255, 255, 255, 0.72);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  box-shadow: var(--soft-shadow);
+}
+
+.media-skeleton span {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  color: rgba(31, 31, 31, 0.34);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.image-failed img {
+  display: none;
 }
 
 .instagram-section {

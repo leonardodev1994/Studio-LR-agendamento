@@ -501,6 +501,31 @@ def gallery_path(index):
     return GALLERY_DIR / f"galeria-{index:02d}.jpg"
 
 
+def optimized_gallery_path(index, thumbnail=False):
+    original = gallery_path(index)
+    folder = PUBLIC / "assets" / "optimized" / "galeria"
+    if thumbnail:
+        folder = folder / "thumbs"
+    candidate = folder / f"galeria-{index:02d}.jpg"
+    if candidate.exists() and original.exists() and candidate.stat().st_mtime >= original.stat().st_mtime:
+        return candidate
+    return original
+
+
+def optimized_asset_path(public_path):
+    parsed = urlparse(str(public_path or ""))
+    clean_path = parsed.path
+    if not clean_path.startswith("/assets/"):
+        return public_path
+    source = PUBLIC / clean_path.lstrip("/")
+    optimized = PUBLIC / "assets" / "optimized" / Path(clean_path).relative_to("/assets")
+    if optimized.suffix.lower() != ".jpg":
+        optimized = optimized.with_suffix(".jpg")
+    if optimized.exists() and source.exists() and optimized.stat().st_mtime >= source.stat().st_mtime:
+        return f"/{optimized.relative_to(PUBLIC).as_posix()}"
+    return clean_path if parsed.query else public_path
+
+
 def gallery_url(path):
     relative = path.relative_to(PUBLIC)
     version = int(path.stat().st_mtime) if path.exists() else 0
@@ -517,10 +542,15 @@ def public_gallery():
     items = []
     for index in range(1, 19):
         path = gallery_path(index)
+        optimized_path = optimized_gallery_path(index)
+        thumb_path = optimized_gallery_path(index, thumbnail=True)
         items.append(
             {
                 "index": index,
-                "src": gallery_url(path),
+                "src": gallery_url(thumb_path),
+                "thumb_src": gallery_url(thumb_path),
+                "full_src": gallery_url(optimized_path),
+                "original_src": gallery_url(path),
                 "alt": f"Trabalho Studio LR {index:02d}",
                 "caption": f"Studio LR {index:02d}",
             }
@@ -750,6 +780,8 @@ def public_catalog():
                     if key in ["name", "price_label", "duration_label", "image", "icon"]
                 }
             )
+        if item.get("image") and str(item["image"]).startswith("/assets/"):
+            item["image"] = optimized_asset_path(item["image"])
         item.setdefault("bookable", True)
         catalog.append(item)
     return catalog
@@ -1136,6 +1168,14 @@ class Handler(SimpleHTTPRequestHandler):
 
     def bad(self, message, status=400):
         self.json({"error": message}, status)
+
+    def end_headers(self):
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/assets/"):
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        elif parsed.path.endswith((".html", "/")):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def authed(self):
         jar = cookies.SimpleCookie(self.headers.get("Cookie", ""))

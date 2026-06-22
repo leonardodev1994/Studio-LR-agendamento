@@ -11,7 +11,7 @@
   <body>
     <header class="site-header">
       <a class="brand" href="#top" aria-label="Studio LR">
-        <img class="brand-logo" src="/assets/logo/logo-oficial.png" alt="Studio LR">
+        <img class="brand-logo" src="/assets/optimized/logo/logo-oficial.png" alt="Studio LR" decoding="async" fetchpriority="high">
         <span>
           <strong>Studio LR</strong>
           <small>Nail Designer</small>
@@ -28,13 +28,13 @@
 
     <main id="top">
       <section class="hero">
-        <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="/assets/servicos/gel-tips.jpg" aria-hidden="true">
+        <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="/assets/optimized/servicos/gel-tips.jpg" aria-hidden="true">
           <source src="/assets/hero/hero-video.mp4" type="video/mp4">
         </video>
         <div class="hero-overlay" aria-hidden="true"></div>
         <div class="hero-copy">
           <div class="official-logo hero-logo" aria-label="Studio LR">
-            <img src="/assets/logo/logo-oficial.png" alt="Studio LR">
+            <img src="/assets/optimized/logo/logo-oficial.png" alt="Studio LR" decoding="async" fetchpriority="high">
           </div>
           <p class="eyebrow">Letícia Rodrigues Nail Designer</p>
           <h1>Beleza, cuidado e autoestima em cada detalhe.</h1>
@@ -82,8 +82,8 @@
       <section class="section studio-section">
         <div class="studio-content">
           <div class="studio-video-frame">
-            <video class="studio-video" autoplay muted loop playsinline preload="metadata" poster="/assets/servicos/gel-tips.jpg" aria-label="Vídeo do Studio LR">
-              <source src="/assets/videos/video-studio-muted.mp4" type="video/mp4">
+            <video class="studio-video" muted loop playsinline preload="metadata" controls poster="/assets/optimized/servicos/gel-tips.jpg" aria-label="Vídeo do Studio LR" data-lazy-video>
+              <source data-src="/assets/videos/video-studio-muted.mp4" type="video/mp4">
             </video>
           </div>
           <div class="studio-copy">
@@ -248,7 +248,7 @@
 
         <div class="instagram-profile-card">
           <div class="instagram-profile-main">
-            <img src="/assets/logo/logo-oficial.png" alt="Studio LR">
+            <img src="/assets/optimized/logo/logo-oficial.png" alt="Studio LR" loading="lazy" decoding="async">
             <div>
               <span>Perfil oficial</span>
               <strong>@leticiar_naildesigner</strong>
@@ -277,7 +277,9 @@
           </div>
           <div class="reels-grid">
             <article class="reel-card video-reel-card">
-              <video src="/assets/final1.mp4" muted loop playsinline preload="metadata" controls aria-label="Transformação Gel na Tips"></video>
+              <video muted loop playsinline preload="none" controls poster="/assets/optimized/galeria/thumbs/galeria-01.jpg" data-lazy-video aria-label="Transformação Gel na Tips">
+                <source data-src="/assets/final1.mp4" type="video/mp4">
+              </video>
               <div class="reel-card-caption">
                 <span>Reel em destaque</span>
                 <strong>Transformação Gel na Tips</strong>
@@ -285,7 +287,9 @@
               </div>
             </article>
             <article class="reel-card video-reel-card">
-              <video src="/assets/final2.mp4" muted loop playsinline preload="metadata" controls aria-label="Banho de Gel"></video>
+              <video muted loop playsinline preload="none" controls poster="/assets/optimized/galeria/thumbs/galeria-05.jpg" data-lazy-video aria-label="Banho de Gel">
+                <source data-src="/assets/final2.mp4" type="video/mp4">
+              </video>
               <div class="reel-card-caption">
                 <span>Resultado real</span>
                 <strong>Banho de Gel</strong>
@@ -293,7 +297,9 @@
               </div>
             </article>
             <article class="reel-card video-reel-card">
-              <video src="/assets/final3.mp4" muted loop playsinline preload="metadata" controls aria-label="Bastidores do Studio LR"></video>
+              <video muted loop playsinline preload="none" controls poster="/assets/optimized/galeria/thumbs/galeria-10.jpg" data-lazy-video aria-label="Bastidores do Studio LR">
+                <source data-src="/assets/final3.mp4" type="video/mp4">
+              </video>
               <div class="reel-card-caption">
                 <span>Studio LR</span>
                 <strong>Bastidores do Studio LR</strong>
@@ -328,12 +334,12 @@
       <button class="lightbox-button close" type="button" data-lightbox-close aria-label="Fechar">×</button>
       <button class="lightbox-button previous" type="button" data-lightbox-prev aria-label="Foto anterior">‹</button>
       <figure class="lightbox-figure">
-        <img id="lightboxImage" src="/assets/galeria/galeria-01.jpg" alt="">
+        <img id="lightboxImage" alt="">
         <figcaption id="lightboxCaption"></figcaption>
       </figure>
       <button class="lightbox-button next" type="button" data-lightbox-next aria-label="Próxima foto">›</button>
     </div>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=perf-1"></script>
   </body>
 </html>

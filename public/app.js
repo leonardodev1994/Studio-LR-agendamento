@@ -60,7 +60,7 @@ const publicServices = [
     price_label: "R$ 100,00",
     duration_label: "120 min",
     description: "Alongamento elegante com acabamento resistente e natural.",
-    image: "/assets/servicos/gel-tips.jpg",
+    image: "/assets/optimized/servicos/gel-tips.jpg",
   },
   {
     key: "fibra-vidro",
@@ -69,7 +69,7 @@ const publicServices = [
     price_label: "R$ 150,00",
     duration_label: "150 min",
     description: "Alongamento sofisticado com leveza, resistência e acabamento natural.",
-    image: "/assets/servicos/fibra-vidro.jpg",
+    image: "/assets/optimized/servicos/fibra-vidro.jpg",
   },
   {
     key: "nail-art-elaborada",
@@ -79,7 +79,7 @@ const publicServices = [
     duration_label: "conforme desenho",
     description: "Adicional cobrado conforme a dificuldade do desenho escolhido.",
     bookable: false,
-    image: "/assets/servicos/nail-art.jpg",
+    image: "/assets/optimized/servicos/nail-art.jpg",
   },
   {
     key: "banho-gel",
@@ -88,7 +88,7 @@ const publicServices = [
     price_label: "R$ 65,00",
     duration_label: "75 min",
     description: "Camada de gel para brilho, resistência e aspecto impecável.",
-    image: "/assets/servicos/banho-gel.jpg",
+    image: "/assets/optimized/servicos/banho-gel.jpg",
   },
   {
     key: "manutencao-gel-tips",
@@ -112,7 +112,9 @@ const publicServices = [
 let galleryItems = Array.from({ length: 18 }, (_, index) => {
   const number = String(index + 1).padStart(2, "0");
   return {
-    src: `/assets/galeria/galeria-${number}.jpg`,
+    src: `/assets/optimized/galeria/thumbs/galeria-${number}.jpg`,
+    thumb_src: `/assets/optimized/galeria/thumbs/galeria-${number}.jpg`,
+    full_src: `/assets/optimized/galeria/galeria-${number}.jpg`,
     alt: `Trabalho Studio LR ${number}`,
     caption: `Studio LR ${number}`,
   };
@@ -121,6 +123,7 @@ const instagramWorkIndexes = [0, 2, 4, 7, 10, 14];
 let currentLightboxIndex = 0;
 let bookingSubmitting = false;
 let bookingCompleted = false;
+let galleriesLoaded = false;
 
 function todayIso() {
   const today = new Date();
@@ -193,7 +196,7 @@ function renderServices() {
       <article class="service-card ${service.image ? "with-image" : "without-image"}">
         ${
           service.image
-            ? `<img class="service-photo" src="${service.image}" alt="${service.name}" loading="lazy" decoding="async">`
+            ? `<img class="service-photo" src="${service.image}" alt="${service.name}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.closest('.service-card')?.classList.add('image-failed')">`
             : `<div class="service-placeholder"><span class="service-icon">${service.icon || "✦"}</span></div>`
         }
         ${service.category ? `<span class="service-category">${service.category}</span>` : ""}
@@ -241,11 +244,14 @@ function renderServices() {
 function renderGalleries() {
   if (workGallery) {
     workGallery.innerHTML = galleryItems
-      .map((item, index) => `
+      .map((item, index) => {
+        const thumb = item.thumb_src || item.src;
+        return `
         <button class="work-photo" type="button" data-gallery-index="${index}" aria-label="Ampliar ${item.alt}">
-          <img src="${item.src}" alt="${item.alt}" loading="${index < 4 ? "eager" : "lazy"}" decoding="async">
+          <img src="${thumb}" alt="${item.alt}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.closest('button')?.classList.add('image-failed')">
         </button>
-      `)
+      `;
+      })
       .join("");
   }
 
@@ -253,9 +259,10 @@ function renderGalleries() {
     instagramGallery.innerHTML = instagramWorkIndexes
       .map((galleryIndex) => {
         const item = galleryItems[galleryIndex];
+        const thumb = item.thumb_src || item.src;
         return `
         <button class="instagram-work-card" type="button" data-gallery-index="${galleryIndex}" aria-label="Ampliar ${item.alt}">
-          <img src="${item.src}" alt="${item.alt}" loading="lazy" decoding="async">
+          <img src="${thumb}" alt="${item.alt}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.closest('button')?.classList.add('image-failed')">
         </button>
       `;
       })
@@ -267,10 +274,27 @@ function renderGalleries() {
   });
 }
 
+function renderGalleryPlaceholders() {
+  if (workGallery) {
+    workGallery.innerHTML = Array.from({ length: 6 }, (_, index) => `
+      <div class="work-photo media-skeleton" aria-hidden="true">
+        <span>${String(index + 1).padStart(2, "0")}</span>
+      </div>
+    `).join("");
+  }
+  if (instagramGallery) {
+    instagramGallery.innerHTML = Array.from({ length: 6 }, (_, index) => `
+      <div class="instagram-work-card media-skeleton" aria-hidden="true">
+        <span>${String(index + 1).padStart(2, "0")}</span>
+      </div>
+    `).join("");
+  }
+}
+
 function openLightbox(index) {
   currentLightboxIndex = index;
   const item = galleryItems[currentLightboxIndex];
-  lightboxImage.src = item.src;
+  lightboxImage.src = item.full_src || item.src;
   lightboxImage.alt = item.alt;
   lightboxCaption.textContent = item.caption;
   lightbox.classList.remove("hidden");
@@ -359,6 +383,8 @@ async function loadGalleryItems() {
     if (payload.gallery?.length) {
       galleryItems = payload.gallery.map((item, index) => ({
         src: item.src,
+        thumb_src: item.thumb_src || item.src,
+        full_src: item.full_src || item.src,
         alt: item.alt || `Trabalho Studio LR ${String(index + 1).padStart(2, "0")}`,
         caption: item.caption || `Studio LR ${String(index + 1).padStart(2, "0")}`,
       }));
@@ -375,6 +401,42 @@ async function loadCatalog() {
   } catch (error) {
     console.warn(error);
   }
+}
+
+async function loadGalleriesWhenNeeded() {
+  if (galleriesLoaded) return;
+  galleriesLoaded = true;
+  await loadGalleryItems();
+  renderGalleries();
+}
+
+function observeOnce(elements, callback, rootMargin = "500px") {
+  const targets = elements.filter(Boolean);
+  if (!targets.length) return;
+  if (!("IntersectionObserver" in window)) {
+    callback();
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) {
+      observer.disconnect();
+      callback();
+    }
+  }, { rootMargin });
+  targets.forEach((target) => observer.observe(target));
+}
+
+function setupLazyVideos() {
+  const videos = Array.from(document.querySelectorAll("[data-lazy-video]"));
+  observeOnce(videos, () => {
+    videos.forEach((video) => {
+      video.querySelectorAll("source[data-src]").forEach((source) => {
+        source.src = source.dataset.src;
+        source.removeAttribute("data-src");
+      });
+      video.load();
+    });
+  }, "600px");
 }
 
 bookingDate.min = todayIso();
@@ -593,12 +655,13 @@ clientLookupForm?.addEventListener("submit", async (event) => {
 
 async function start() {
   await loadConfig();
-  await loadGalleryItems();
   await loadCatalog();
   const payload = await api("/api/public/services");
   state.services = payload.services;
   renderServices();
-  renderGalleries();
+  renderGalleryPlaceholders();
+  observeOnce([workGallery, instagramGallery], loadGalleriesWhenNeeded, "700px");
+  setupLazyVideos();
 }
 
 start().catch((error) => setMessage(error.message));
