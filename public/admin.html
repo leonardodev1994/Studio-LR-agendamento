@@ -8,262 +8,239 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body class="admin-body">
-    <header class="site-header">
-      <a class="brand" href="/">
-        <img class="brand-logo" src="/assets/logo/logo-oficial.png" alt="Studio LR">
-        <span>
-          <strong>Studio LR</strong>
-          <small>Agenda</small>
-        </span>
-      </a>
-      <nav>
-        <a href="/">Site</a>
-        <button id="logoutButton" class="link-button" type="button">Sair</button>
-      </nav>
-    </header>
-
-    <main class="admin-main">
-      <section id="loginPanel" class="admin-login">
-        <form id="loginForm" class="login-card">
-          <div class="official-logo login-logo" aria-label="Studio LR">
-            <img src="/assets/logo/logo-oficial.png" alt="Studio LR">
-          </div>
-          <p class="eyebrow">Acesso Letícia</p>
-          <h1>Entrar na agenda</h1>
-          <p class="login-intro">Gerencie horários, confirmações e atendimentos em um painel simples.</p>
+    <main class="ops-app">
+      <section id="loginPanel" class="ops-login">
+        <form id="loginForm" class="ops-login-card">
+          <img src="/assets/logo/logo-oficial.png" alt="Studio LR">
+          <span>Admin Studio LR</span>
+          <h1>Entrar no painel</h1>
           <label>
             Senha
-            <input name="password" type="password" required>
+            <input name="password" type="password" autocomplete="current-password" required>
           </label>
-          <button class="button primary full" type="submit">Entrar</button>
-          <p id="loginMessage" class="form-message" role="status"></p>
+          <button class="ops-button primary" type="submit">Entrar</button>
+          <p id="loginMessage" class="ops-message" role="status"></p>
         </form>
       </section>
 
-      <section id="adminPanel" class="admin-panel hidden">
-        <aside class="admin-sidebar" aria-label="Módulos administrativos">
-          <button class="admin-tab active" type="button" data-admin-module="dashboard">Dashboard</button>
-          <button class="admin-tab" type="button" data-admin-module="agenda">Agenda</button>
-          <button class="admin-tab" type="button" data-admin-module="servicos">Serviços e valores</button>
-          <button class="admin-tab" type="button" data-admin-module="clientes">Clientes</button>
-          <button class="admin-tab" type="button" data-admin-module="financeiro">Financeiro</button>
-          <button class="admin-tab" type="button" data-admin-module="horarios">Horários</button>
-          <button class="admin-tab" type="button" data-admin-module="galeria">Galeria</button>
-          <button class="admin-tab" type="button" data-admin-module="configuracoes">Configurações</button>
+      <section id="adminPanel" class="ops-shell hidden">
+        <aside class="ops-sidebar">
+          <a class="ops-brand" href="/">
+            <img src="/assets/logo/logo-oficial.png" alt="Studio LR">
+            <span>
+              <strong>Studio LR</strong>
+              <small>Painel administrativo</small>
+            </span>
+          </a>
+          <nav class="ops-nav" aria-label="Menu administrativo">
+            <button class="active" type="button" data-admin-module="dashboard">Dashboard</button>
+            <button type="button" data-admin-module="agenda">Agenda</button>
+            <button type="button" data-admin-module="pendencias">Pendências</button>
+            <button type="button" data-admin-module="clientes">Clientes</button>
+            <button type="button" data-admin-module="financeiro">Financeiro</button>
+            <button type="button" data-admin-module="servicos">Serviços</button>
+            <button type="button" data-admin-module="horarios">Horários</button>
+            <button type="button" data-admin-module="galeria">Galeria</button>
+            <button type="button" data-admin-module="configuracoes">Configurações</button>
+          </nav>
         </aside>
 
-        <div class="admin-content">
-          <section class="admin-module" data-module-panel="dashboard">
-            <div class="admin-toolbar">
+        <div class="ops-content">
+          <header class="ops-topbar">
+            <div>
+              <span id="opsTodayLabel"></span>
+              <strong>Controle do Studio LR</strong>
+            </div>
+            <div class="ops-topbar-actions">
+              <a class="ops-button ghost" href="/">Ver site</a>
+              <button id="logoutButton" class="ops-button ghost" type="button">Sair</button>
+            </div>
+          </header>
+
+          <section class="ops-module" data-module-panel="dashboard">
+            <div class="ops-section-head">
               <div>
-                <p class="eyebrow">Área administrativa</p>
+                <span>Visão geral</span>
                 <h1>Dashboard</h1>
               </div>
             </div>
-            <div id="dashboardCards" class="admin-summary-grid"></div>
-          </section>
-
-          <section class="admin-module hidden" data-module-panel="agenda">
-            <div class="admin-toolbar">
-              <div>
-                <p class="eyebrow">Agenda</p>
-                <h1>Agenda profissional</h1>
-              </div>
-              <button class="button secondary" type="button" id="todayButton">Hoje</button>
-            </div>
-
-            <div class="agenda-finance-grid" id="agendaFinanceCards"></div>
-
-            <div class="agenda-workspace">
-              <section class="calendar-panel">
-                <div class="calendar-toolbar">
-                  <button class="button secondary" type="button" id="prevMonthButton">Mês anterior</button>
-                  <strong id="calendarMonthLabel"></strong>
-                  <button class="button secondary" type="button" id="nextMonthButton">Próximo mês</button>
+            <div id="dashboardCards" class="ops-metrics"></div>
+            <div class="ops-grid two">
+              <section class="ops-panel">
+                <div class="ops-panel-head">
+                  <h2>Próximos e pendentes</h2>
+                  <button class="ops-button ghost" type="button" data-jump-module="agenda">Abrir agenda</button>
                 </div>
-                <div class="calendar-weekdays" aria-hidden="true">
-                  <span>Seg</span>
-                  <span>Ter</span>
-                  <span>Qua</span>
-                  <span>Qui</span>
-                  <span>Sex</span>
-                  <span>Sáb</span>
-                  <span>Dom</span>
-                </div>
-                <div id="calendarGrid" class="calendar-grid"></div>
+                <div id="dashboardTodayList" class="ops-list"></div>
               </section>
-
-              <section class="pending-panel">
-                <div class="section-heading compact">
-                  <p class="eyebrow">Pendências</p>
-                  <h2>Agendamentos pendentes</h2>
+              <section class="ops-panel">
+                <div class="ops-panel-head">
+                  <h2>Pendências</h2>
+                  <button class="ops-button ghost" type="button" data-jump-module="pendencias">Ver todas</button>
                 </div>
-                <div id="pendingAppointmentsList" class="pending-list"></div>
+                <div id="dashboardPendingList" class="ops-list"></div>
               </section>
             </div>
-
-            <div class="timeline-heading">
-              <div>
-                <p class="eyebrow">Timeline</p>
-                <h2 id="selectedDateTitle">Agenda do dia</h2>
-              </div>
-              <div class="admin-date-tools">
-                <button class="button secondary" type="button" id="prevDayButton">Dia anterior</button>
-                <label>
-                  Data
-                  <input id="adminDate" type="date">
-                </label>
-                <button class="button secondary" type="button" id="nextDayButton">Próximo dia</button>
-              </div>
-            </div>
-
-            <form id="appointmentFilters" class="admin-filters compact">
-              <label>
-                Status
-                <select name="status">
-                  <option value="">Todos</option>
-                  <option value="Pendente">Pendente</option>
-                  <option value="Confirmado">Confirmado</option>
-                  <option value="Cancelado">Cancelado</option>
-                  <option value="Concluído">Concluído</option>
-                </select>
-              </label>
-              <label>
-                Serviço
-                <select name="service_id">
-                  <option value="">Todos</option>
-                </select>
-              </label>
-              <label>
-                Cliente ou telefone
-                <input name="search" placeholder="Buscar">
-              </label>
-              <button class="button secondary" type="submit">Filtrar timeline</button>
-            </form>
-            <p id="appointmentActionMessage" class="form-message"></p>
-
-            <div id="appointmentsList" class="appointments-list"></div>
           </section>
 
-          <section class="admin-module hidden" data-module-panel="servicos">
-            <div class="admin-toolbar">
+          <section class="ops-module hidden" data-module-panel="agenda">
+            <div class="ops-section-head">
               <div>
-                <p class="eyebrow">Serviços</p>
-                <h1>Editar catálogo</h1>
-                <p class="section-subtitle">Altere o nome e o valor exibidos no site público.</p>
+                <span>Agenda operacional</span>
+                <h1>Calendário e timeline</h1>
+              </div>
+              <div class="ops-actions">
+                <button class="ops-button ghost" type="button" id="prevDayButton">Dia anterior</button>
+                <input id="adminDate" class="ops-date-input" type="date">
+                <button class="ops-button ghost" type="button" id="nextDayButton">Próximo dia</button>
+                <button class="ops-button primary" type="button" id="todayButton">Hoje</button>
               </div>
             </div>
-            <div id="adminServicesList" class="admin-summary-grid"></div>
+
+            <div id="agendaFinanceCards" class="ops-metrics compact"></div>
+
+            <div class="ops-grid calendar-layout">
+              <section class="ops-panel">
+                <div class="ops-panel-head">
+                  <button class="ops-button ghost" type="button" id="prevMonthButton">Mês anterior</button>
+                  <h2 id="calendarMonthLabel">Calendário</h2>
+                  <button class="ops-button ghost" type="button" id="nextMonthButton">Próximo mês</button>
+                </div>
+                <div class="ops-weekdays" aria-hidden="true">
+                  <span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span>
+                </div>
+                <div id="calendarGrid" class="ops-calendar"></div>
+              </section>
+
+              <section class="ops-panel timeline-panel">
+                <div class="ops-panel-head">
+                  <h2 id="selectedDateTitle">Agenda do dia</h2>
+                </div>
+                <form id="appointmentFilters" class="ops-filters">
+                  <select name="status" aria-label="Status">
+                    <option value="">Todos os status</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Confirmado">Confirmado</option>
+                    <option value="Cancelado">Cancelado</option>
+                    <option value="Concluído">Concluído</option>
+                  </select>
+                  <select name="service_id" aria-label="Serviço">
+                    <option value="">Todos os serviços</option>
+                  </select>
+                  <input name="search" placeholder="Cliente ou telefone">
+                  <button class="ops-button ghost" type="submit">Filtrar</button>
+                </form>
+                <p id="appointmentActionMessage" class="ops-message"></p>
+                <div id="appointmentsList" class="ops-timeline"></div>
+              </section>
+            </div>
           </section>
 
-          <section class="admin-module hidden" data-module-panel="clientes">
-            <div class="admin-toolbar">
+          <section class="ops-module hidden" data-module-panel="pendencias">
+            <div class="ops-section-head">
               <div>
-                <p class="eyebrow">Clientes</p>
-                <h1>Base de clientes</h1>
+                <span>Confirmações</span>
+                <h1>Agendamentos pendentes</h1>
               </div>
             </div>
-            <div id="clientsList" class="admin-summary-grid"></div>
+            <div id="pendingAppointmentsList" class="ops-table-wrap"></div>
           </section>
 
-          <section class="admin-module hidden" data-module-panel="financeiro">
-            <div class="admin-toolbar">
+          <section class="ops-module hidden" data-module-panel="clientes">
+            <div class="ops-section-head">
               <div>
-                <p class="eyebrow">Financeiro</p>
-                <h1>Resumo financeiro</h1>
+                <span>Relacionamento</span>
+                <h1>Clientes</h1>
               </div>
+              <input id="clientSearch" class="ops-search" placeholder="Buscar cliente, telefone ou bairro">
             </div>
-            <div id="financeSummary" class="admin-summary-grid"></div>
+            <div id="clientsList" class="ops-table-wrap"></div>
           </section>
 
-          <section class="admin-module hidden" data-module-panel="horarios">
-            <div class="admin-toolbar">
+          <section class="ops-module hidden" data-module-panel="financeiro">
+            <div class="ops-section-head">
               <div>
-                <p class="eyebrow">Horários</p>
-                <h1>Disponibilidade</h1>
+                <span>Faturamento</span>
+                <h1>Financeiro</h1>
               </div>
             </div>
-            <div class="admin-grid">
-              <form id="blockDayForm" class="scheduler compact">
+            <div id="financeSummary" class="ops-metrics"></div>
+          </section>
+
+          <section class="ops-module hidden" data-module-panel="servicos">
+            <div class="ops-section-head">
+              <div>
+                <span>Catálogo</span>
+                <h1>Serviços</h1>
+              </div>
+            </div>
+            <div id="adminServicesList" class="ops-services"></div>
+          </section>
+
+          <section class="ops-module hidden" data-module-panel="horarios">
+            <div class="ops-section-head">
+              <div>
+                <span>Disponibilidade</span>
+                <h1>Horários</h1>
+              </div>
+            </div>
+            <div class="ops-grid three">
+              <form id="blockDayForm" class="ops-form-panel">
                 <h2>Bloquear dia</h2>
-                <label>
-                  Data
-                  <input name="date" type="date" required>
-                </label>
-                <label>
-                  Motivo
-                  <input name="reason" placeholder="Folga, curso, viagem">
-                </label>
-                <button class="button secondary full" type="submit">Bloquear</button>
+                <label>Data<input name="date" type="date" required></label>
+                <label>Motivo<input name="reason" placeholder="Folga, curso, viagem"></label>
+                <button class="ops-button primary" type="submit">Bloquear dia</button>
               </form>
-
-              <form id="blockSlotForm" class="scheduler compact">
+              <form id="blockSlotForm" class="ops-form-panel">
                 <h2>Bloquear horário</h2>
-                <div class="form-row two">
-                  <label>
-                    Data
-                    <input name="date" type="date" required>
-                  </label>
-                  <label>
-                    Hora
-                    <input name="time" type="time" required>
-                  </label>
-                </div>
-                <label>
-                  Motivo
-                  <input name="reason" placeholder="Indisponível">
-                </label>
-                <button class="button secondary full" type="submit">Bloquear horário</button>
+                <label>Data<input name="date" type="date" required></label>
+                <label>Hora<input name="time" type="time" required></label>
+                <label>Motivo<input name="reason" placeholder="Indisponível"></label>
+                <button class="ops-button primary" type="submit">Bloquear horário</button>
               </form>
-
-              <form id="extraSlotForm" class="scheduler compact">
+              <form id="extraSlotForm" class="ops-form-panel">
                 <h2>Horário extra</h2>
-                <div class="form-row two">
-                  <label>
-                    Data
-                    <input name="date" type="date" required>
-                  </label>
-                  <label>
-                    Hora
-                    <input name="time" type="time" required>
-                  </label>
-                </div>
-                <label>
-                  Observação
-                  <input name="note" placeholder="Extra noturno">
-                </label>
-                <button class="button secondary full" type="submit">Adicionar</button>
+                <label>Data<input name="date" type="date" required></label>
+                <label>Hora<input name="time" type="time" required></label>
+                <label>Observação<input name="note" placeholder="Extra noturno"></label>
+                <button class="ops-button primary" type="submit">Criar extra</button>
               </form>
             </div>
-            <section class="settings-list">
-              <h2>Dias bloqueados e extras</h2>
-              <div id="settingsList"></div>
-            </section>
+            <div class="ops-grid two">
+              <section class="ops-panel">
+                <div class="ops-panel-head"><h2>Dias e horários de atendimento</h2></div>
+                <div id="weeklyHoursList" class="ops-list"></div>
+              </section>
+              <section class="ops-panel">
+                <div class="ops-panel-head"><h2>Bloqueios e extras</h2></div>
+                <div id="settingsList" class="ops-list"></div>
+              </section>
+            </div>
           </section>
 
-          <section class="admin-module hidden" data-module-panel="galeria">
-            <div class="admin-toolbar">
+          <section class="ops-module hidden" data-module-panel="galeria">
+            <div class="ops-section-head">
               <div>
-                <p class="eyebrow">Galeria</p>
-                <h1>Fotos públicas</h1>
+                <span>Fotos</span>
+                <h1>Galeria pública</h1>
               </div>
             </div>
-            <div id="adminGalleryList" class="admin-summary-grid"></div>
+            <div id="adminGalleryList" class="ops-gallery"></div>
           </section>
 
-          <section class="admin-module hidden" data-module-panel="configuracoes">
-            <div class="admin-toolbar">
+          <section class="ops-module hidden" data-module-panel="configuracoes">
+            <div class="ops-section-head">
               <div>
-                <p class="eyebrow">Configurações</p>
-                <h1>Sistema</h1>
+                <span>Sistema</span>
+                <h1>Configurações</h1>
               </div>
             </div>
-            <div id="configSummary" class="admin-summary-grid"></div>
+            <div id="configSummary" class="ops-metrics"></div>
           </section>
         </div>
       </section>
     </main>
 
-    <script src="/admin.js?v=admin-agenda-fresha-1"></script>
+    <script src="/admin.js?v=admin-operacional-1"></script>
   </body>
 </html>

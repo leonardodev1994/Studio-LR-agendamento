@@ -20,18 +20,25 @@ const appointmentsList = document.querySelector("#appointmentsList");
 const blockDayForm = document.querySelector("#blockDayForm");
 const blockSlotForm = document.querySelector("#blockSlotForm");
 const extraSlotForm = document.querySelector("#extraSlotForm");
+const weeklyHoursList = document.querySelector("#weeklyHoursList");
 const settingsList = document.querySelector("#settingsList");
 const adminTabs = document.querySelectorAll("[data-admin-module]");
 const adminModules = document.querySelectorAll("[data-module-panel]");
 const dashboardCards = document.querySelector("#dashboardCards");
+const dashboardTodayList = document.querySelector("#dashboardTodayList");
+const dashboardPendingList = document.querySelector("#dashboardPendingList");
 const adminServicesList = document.querySelector("#adminServicesList");
 const clientsList = document.querySelector("#clientsList");
+const clientSearch = document.querySelector("#clientSearch");
 const financeSummary = document.querySelector("#financeSummary");
 const adminGalleryList = document.querySelector("#adminGalleryList");
 const configSummary = document.querySelector("#configSummary");
+const opsTodayLabel = document.querySelector("#opsTodayLabel");
 
 const statuses = ["Pendente", "Confirmado", "Cancelado", "Concluído"];
-let adminServiceOptions = [];
+const weekdays = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+let catalog = [];
+let clientsCache = [];
 let currentCalendarMonth = todayIso().slice(0, 7);
 
 function todayIso() {
@@ -49,38 +56,10 @@ async function api(path, options = {}) {
 }
 
 async function uploadApi(path, formData) {
-  const response = await fetch(path, {
-    method: "POST",
-    body: formData,
-  });
+  const response = await fetch(path, { method: "POST", body: formData });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || "Algo deu errado.");
   return payload;
-}
-
-function setAuthed(value) {
-  loginPanel.classList.toggle("hidden", value);
-  adminPanel.classList.toggle("hidden", !value);
-  logoutButton.classList.toggle("hidden", !value);
-}
-
-function setModule(moduleName) {
-  adminTabs.forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.adminModule === moduleName);
-  });
-  adminModules.forEach((module) => {
-    module.classList.toggle("hidden", module.dataset.modulePanel !== moduleName);
-  });
-}
-
-function metricCard(label, value, detail = "") {
-  return `
-    <article class="admin-card">
-      <span>${label}</span>
-      <strong>${value}</strong>
-      ${detail ? `<p>${detail}</p>` : ""}
-    </article>
-  `;
 }
 
 function escapeHtml(value = "") {
@@ -94,29 +73,12 @@ function escapeHtml(value = "") {
 
 function formatDate(value) {
   if (!value) return "";
-  const [year, month, day] = value.split("-");
+  const [year, month, day] = String(value).slice(0, 10).split("-");
   return `${day}/${month}/${year}`;
 }
 
 function monthLabel(value) {
-  const date = new Date(`${value}-01T12:00:00`);
-  return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-}
-
-function addMonths(value, months) {
-  const date = new Date(`${value}-01T12:00:00`);
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().slice(0, 7);
-}
-
-function sourceLabel(value) {
-  return value === "admin" ? "Admin" : "Site";
-}
-
-function setActionMessage(message, success = false) {
-  if (!appointmentActionMessage) return;
-  appointmentActionMessage.textContent = message;
-  appointmentActionMessage.className = success ? "form-message success-box" : "form-message";
+  return new Date(`${value}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
 function addDays(value, days) {
@@ -125,8 +87,29 @@ function addDays(value, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function addMonths(value, months) {
+  const date = new Date(`${value}-01T12:00:00`);
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0, 7);
+}
+
+function statusClass(status = "") {
+  return String(status).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function moneyLabel(cents = 0) {
   return `R$ ${(Number(cents || 0) / 100).toFixed(2).replace(".", ",")}`;
+}
+
+function metricCard(label, value, detail = "") {
+  return `<article class="ops-card"><span>${label}</span><strong>${value}</strong>${detail ? `<p>${detail}</p>` : ""}</article>`;
+}
+
+function serviceOptions(selectedId) {
+  return catalog
+    .filter((service) => service.bookable !== false && service.service_id && service.active !== false)
+    .map((service) => `<option value="${service.service_id}" ${Number(service.service_id) === Number(selectedId) ? "selected" : ""}>${escapeHtml(service.name)}</option>`)
+    .join("");
 }
 
 function whatsappClientUrl(phone, message = "") {
@@ -140,114 +123,93 @@ function whatsappMessage(type, item) {
   if (type === "cancel") {
     return `Olá, ${item.client_name}. Seu agendamento no Studio LR foi cancelado.\n\nServiço: ${item.service_name}\nData: ${item.appointment_date}\nHorário: ${item.appointment_time}\n\nQualquer dúvida, fale conosco.`;
   }
-  if (type === "done") {
-    return `Olá, ${item.client_name}! Obrigada por visitar o Studio LR hoje. 💅✨\n\nEsperamos você na próxima manutenção!`;
-  }
   if (type === "reschedule") {
     return `Olá, ${item.client_name}! Precisamos ajustar seu horário no Studio LR.\n\nServiço: ${item.service_name}\nData atual: ${item.appointment_date}\nHorário atual: ${item.appointment_time}\n\nPodemos combinar um novo horário?`;
-  }
-  if (type === "free") {
-    return `Olá, ${item.client_name}! Aqui é do Studio LR.`;
   }
   return `Olá, ${item.client_name}! Seu agendamento no Studio LR foi confirmado. 💅✨\n\nServiço: ${item.service_name}\nData: ${item.appointment_date}\nHorário: ${item.appointment_time}\n\nEsperamos você!`;
 }
 
-function serviceOptions(selectedId) {
-  return adminServiceOptions
-    .filter((service) => service.bookable !== false && service.service_id)
-    .map((service) => `<option value="${service.service_id}" ${Number(service.service_id) === Number(selectedId) ? "selected" : ""}>${service.name}</option>`)
-    .join("");
+function setAuthed(value) {
+  loginPanel.classList.toggle("hidden", value);
+  adminPanel.classList.toggle("hidden", !value);
 }
 
-function statusClass(status = "") {
-  return String(status)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+function setModule(moduleName) {
+  adminTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.adminModule === moduleName));
+  adminModules.forEach((module) => module.classList.toggle("hidden", module.dataset.modulePanel !== moduleName));
 }
 
-function renderAppointmentCards(container, items, emptyMessage, compact = false) {
-  if (!items.length) {
-    container.innerHTML = `<p class="form-message">${emptyMessage}</p>`;
-    return;
-  }
-
-  container.innerHTML = items
-    .map((item) => `
-      <article class="appointment-card ${compact ? "compact" : ""} status-${statusClass(item.status)} ${item.reschedule_request_id ? "has-reschedule" : ""}" data-appointment-card="${item.id}">
-        <div class="appointment-time">${escapeHtml(item.appointment_time)}</div>
-        <div class="appointment-main">
-          <span class="appointment-status">${item.reschedule_request_id ? "Reagendamento solicitado" : escapeHtml(item.status)}</span>
-          <button class="client-link" type="button" data-client-history="${item.client_id}">${escapeHtml(item.client_name)}</button>
-          <p>${escapeHtml(item.client_phone)}${item.client_neighborhood ? ` · ${escapeHtml(item.client_neighborhood)}` : ""}</p>
-          <p>${escapeHtml(item.service_name)} · ${escapeHtml(item.price_label || moneyLabel(item.price_cents))} · ${escapeHtml(item.duration_minutes)} min</p>
-          <p>${escapeHtml(item.notes || "Sem observação")}</p>
-          <p>Origem: ${escapeHtml(item.source_label || sourceLabel(item.source))} · Criado em ${escapeHtml(String(item.created_at || "").slice(0, 16).replace("T", " "))}</p>
-          ${
-            item.reschedule_request_id
-              ? `
-                <div class="reschedule-note">
-                  <strong>Pedido de reagendamento</strong>
-                  <span>${escapeHtml(item.requested_date || "Data a combinar")} · ${escapeHtml(item.requested_time || "Horário a combinar")} · ${escapeHtml(item.reschedule_status)}</span>
-                  ${item.reschedule_message ? `<p>${escapeHtml(item.reschedule_message)}</p>` : ""}
-                </div>
-              `
-              : ""
-          }
-        </div>
-        <div class="appointment-actions" data-id="${item.id}">
-          <button class="button secondary" type="button" data-quick-status="Confirmado">Confirmar</button>
-          <button class="button secondary" type="button" data-quick-status="Pendente">Pendente</button>
-          <button class="button secondary" type="button" data-quick-status="Concluído">Concluir</button>
-          <button class="button secondary" type="button" data-quick-status="Cancelado">Cancelar</button>
-          <a class="button secondary" href="${whatsappClientUrl(item.client_phone, whatsappMessage("reschedule", item))}" target="_blank" rel="noreferrer">Reagendar</a>
-          <a class="button secondary" href="${whatsappClientUrl(item.client_phone, whatsappMessage("confirm", item))}" target="_blank" rel="noreferrer">WhatsApp confirmar</a>
-          <a class="button secondary" href="${whatsappClientUrl(item.client_phone, whatsappMessage("cancel", item))}" target="_blank" rel="noreferrer">WhatsApp cancelar</a>
-          <a class="button secondary" href="${whatsappClientUrl(item.client_phone, whatsappMessage("free", item))}" target="_blank" rel="noreferrer">WhatsApp</a>
-        </div>
-        <form class="appointment-edit-form" data-edit-appointment="${item.id}">
-          <div class="form-row two">
-            <label>Cliente<input name="client_name" value="${escapeHtml(item.client_name)}" required></label>
-            <label>Telefone<input name="client_phone" value="${escapeHtml(item.client_phone)}" required></label>
-          </div>
-          <label>Bairro<input name="client_neighborhood" value="${escapeHtml(item.client_neighborhood || "")}"></label>
-          <label>Serviço<select name="service_id" required>${serviceOptions(item.service_id)}</select></label>
-          <div class="form-row two">
-            <label>Data<input name="date" type="date" value="${escapeHtml(item.appointment_date)}" required></label>
-            <label>Horário<input name="time" type="time" value="${escapeHtml(item.appointment_time)}" required></label>
-          </div>
-          <label>Status<select name="status">${statuses.map((status) => `<option value="${status}" ${status === item.status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
-          <label>Observação<textarea name="notes" rows="2">${escapeHtml(item.notes || "")}</textarea></label>
-          <div class="appointment-actions">
-            <button class="button primary" type="submit">Salvar alterações</button>
-            <button class="button secondary danger" type="button" data-delete-appointment="${item.id}">Excluir</button>
-          </div>
-          <p class="form-message" data-card-message></p>
-        </form>
-      </article>
-    `)
-    .join("");
-
-  attachAppointmentActions(container);
+function setActionMessage(message, success = false) {
+  if (!appointmentActionMessage) return;
+  appointmentActionMessage.textContent = message;
+  appointmentActionMessage.className = success ? "ops-message success" : "ops-message";
 }
 
-function renderAppointments(items) {
-  renderAppointmentCards(appointmentsList, items, "Nenhum agendamento para este dia.");
+async function updateAppointment(id, payload) {
+  await api(`/api/admin/appointments/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
+  setActionMessage("Agendamento atualizado.", true);
+  await refreshAll();
 }
 
-function attachAppointmentActions(container) {
-  container.querySelectorAll("[data-quick-status]").forEach((button) => {
+async function deleteAppointment(id) {
+  if (!confirm("Excluir este agendamento? Esta ação não pode ser desfeita.")) return;
+  await api(`/api/admin/appointments/${id}`, { method: "DELETE" });
+  setActionMessage("Agendamento excluído.", true);
+  await refreshAll();
+}
+
+function appointmentSummary(item) {
+  return `
+    <div class="ops-appointment-main">
+      <span class="ops-status ${statusClass(item.status)}">${item.reschedule_request_id ? "Reagendamento solicitado" : escapeHtml(item.status)}</span>
+      <button class="ops-client-link" type="button" data-client-history="${item.client_id}">${escapeHtml(item.client_name)}</button>
+      <p>${escapeHtml(item.client_phone)}${item.client_neighborhood ? ` · ${escapeHtml(item.client_neighborhood)}` : ""}</p>
+      <p>${escapeHtml(item.service_name)} · ${escapeHtml(item.price_label || moneyLabel(item.price_cents))} · ${escapeHtml(item.duration_minutes)} min</p>
+      <p>${escapeHtml(item.notes || "Sem observação")}</p>
+      <small>Origem: ${item.source === "admin" ? "Admin" : "Site"} · Criado em ${escapeHtml(String(item.created_at || "").slice(0, 16).replace("T", " "))}</small>
+    </div>
+  `;
+}
+
+function appointmentActions(item) {
+  return `
+    <div class="ops-row-actions" data-actions-for="${item.id}">
+      <button class="ops-button success" type="button" data-status="Confirmado">Confirmar</button>
+      <button class="ops-button info" type="button" data-status="Concluído">Concluir</button>
+      <button class="ops-button warn" type="button" data-status="Pendente">Pendente</button>
+      <button class="ops-button danger" type="button" data-status="Cancelado">Cancelar</button>
+      <a class="ops-button ghost" target="_blank" rel="noreferrer" href="${whatsappClientUrl(item.client_phone, whatsappMessage("confirm", item))}">WhatsApp</a>
+    </div>
+  `;
+}
+
+function appointmentEditForm(item) {
+  return `
+    <details class="ops-edit-box">
+      <summary>Editar / reagendar</summary>
+      <form data-edit-appointment="${item.id}" class="ops-inline-form">
+        <label>Cliente<input name="client_name" value="${escapeHtml(item.client_name)}" required></label>
+        <label>Telefone<input name="client_phone" value="${escapeHtml(item.client_phone)}" required></label>
+        <label>Bairro<input name="client_neighborhood" value="${escapeHtml(item.client_neighborhood || "")}"></label>
+        <label>Serviço<select name="service_id" required>${serviceOptions(item.service_id)}</select></label>
+        <label>Data<input name="date" type="date" value="${escapeHtml(item.appointment_date)}" required></label>
+        <label>Horário<input name="time" type="time" value="${escapeHtml(item.appointment_time)}" required></label>
+        <label>Status<select name="status">${statuses.map((status) => `<option value="${status}" ${status === item.status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+        <label class="wide">Observação<textarea name="notes" rows="2">${escapeHtml(item.notes || "")}</textarea></label>
+        <button class="ops-button primary" type="submit">Salvar</button>
+        <button class="ops-button danger" type="button" data-delete-appointment="${item.id}">Excluir</button>
+      </form>
+    </details>
+  `;
+}
+
+function bindAppointmentActions(container) {
+  container.querySelectorAll("[data-actions-for] [data-status]").forEach((button) => {
     button.addEventListener("click", async () => {
-      const id = button.closest("[data-id]").dataset.id;
       try {
-        await api(`/api/admin/appointments/${id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: button.dataset.quickStatus }),
-        });
-        setActionMessage(`Status atualizado para ${button.dataset.quickStatus}.`, true);
-        await refreshAgenda();
+        await updateAppointment(button.closest("[data-actions-for]").dataset.actionsFor, { status: button.dataset.status });
       } catch (error) {
-        setActionMessage(error.message || "Não foi possível atualizar o status.");
+        setActionMessage(error.message || "Não foi possível atualizar.");
       }
     });
   });
@@ -255,46 +217,21 @@ function attachAppointmentActions(container) {
   container.querySelectorAll("[data-edit-appointment]").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const message = form.querySelector("[data-card-message]");
-      const button = form.querySelector("button[type='submit']");
       const data = Object.fromEntries(new FormData(form));
-      button.disabled = true;
-      button.textContent = "Salvando...";
-      message.textContent = "";
       try {
-        const payload = {
-          service_id: data.service_id,
-          client_name: data.client_name,
-          client_phone: data.client_phone,
-          client_neighborhood: data.client_neighborhood,
-          date: data.date,
-          time: data.time,
-          status: data.status,
-          notes: data.notes,
-        };
-        await api(`/api/admin/appointments/${form.dataset.editAppointment}`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-        setActionMessage("Agendamento atualizado.", true);
+        await updateAppointment(form.dataset.editAppointment, data);
         adminDate.value = data.date;
         currentCalendarMonth = data.date.slice(0, 7);
-        await refreshAgenda();
       } catch (error) {
-        message.textContent = error.message || "Não foi possível salvar.";
-        button.disabled = false;
-        button.textContent = "Salvar alterações";
+        setActionMessage(error.message || "Não foi possível salvar.");
       }
     });
   });
 
   container.querySelectorAll("[data-delete-appointment]").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm("Excluir este agendamento? Esta ação não pode ser desfeita.")) return;
       try {
-        await api(`/api/admin/appointments/${button.dataset.deleteAppointment}`, { method: "DELETE" });
-        setActionMessage("Agendamento excluído.", true);
-        await refreshAgenda();
+        await deleteAppointment(button.dataset.deleteAppointment);
       } catch (error) {
         setActionMessage(error.message || "Não foi possível excluir.");
       }
@@ -302,95 +239,69 @@ function attachAppointmentActions(container) {
   });
 
   container.querySelectorAll("[data-client-history]").forEach((button) => {
-    button.addEventListener("click", () => loadClientHistory(button.dataset.clientHistory));
+    button.addEventListener("click", () => openClientHistory(button.dataset.clientHistory));
   });
 }
 
-function renderSettings(payload) {
-  const blocked = payload.blocked_days
-    .map((day) => `
-      <div class="settings-item">
-        <span>Bloqueado: ${day.block_date}${day.reason ? ` · ${day.reason}` : ""}</span>
-        <button class="button secondary" type="button" data-delete-block="${day.id}">Remover</button>
-      </div>
-    `)
-    .join("");
-
-  const extras = payload.extra_slots
-    .map((slot) => `
-      <div class="settings-item">
-        <span>Extra: ${slot.slot_date} às ${slot.slot_time}${slot.note ? ` · ${slot.note}` : ""}</span>
-        <button class="button secondary" type="button" data-delete-extra="${slot.id}">Remover</button>
-      </div>
-    `)
-    .join("");
-  const blockedSlots = (payload.blocked_slots || [])
-    .map((slot) => `
-      <div class="settings-item">
-        <span>Horário bloqueado: ${slot.slot_date} às ${slot.slot_time}${slot.reason ? ` · ${slot.reason}` : ""}</span>
-        <button class="button secondary" type="button" data-delete-block-slot="${slot.id}">Remover</button>
-      </div>
-    `)
-    .join("");
-
-  settingsList.innerHTML = `<div class="settings-items">${blocked || ""}${blockedSlots || ""}${extras || ""}</div>` || "";
-  if (!blocked && !blockedSlots && !extras) {
-    settingsList.innerHTML = "<p class='form-message'>Nenhum bloqueio ou horário extra cadastrado.</p>";
+function renderTimeline(items) {
+  if (!items.length) {
+    appointmentsList.innerHTML = `<p class="ops-empty">Nenhum agendamento para este dia.</p>`;
+    return;
   }
-
-  settingsList.querySelectorAll("[data-delete-block]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      await api(`/api/admin/blocked-days/${button.dataset.deleteBlock}`, { method: "DELETE" });
-      loadSettings();
-      refreshAgenda();
-    });
-  });
-
-  settingsList.querySelectorAll("[data-delete-extra]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      await api(`/api/admin/extra-slots/${button.dataset.deleteExtra}`, { method: "DELETE" });
-      loadSettings();
-      refreshAgenda();
-    });
-  });
-
-  settingsList.querySelectorAll("[data-delete-block-slot]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      await api(`/api/admin/blocked-slots/${button.dataset.deleteBlockSlot}`, { method: "DELETE" });
-      await loadSettings();
-      await refreshAgenda();
-    });
-  });
+  appointmentsList.innerHTML = items.map((item) => `
+    <article class="ops-appointment status-border-${statusClass(item.status)}">
+      <time>${escapeHtml(item.appointment_time)}</time>
+      ${appointmentSummary(item)}
+      ${appointmentActions(item)}
+      ${appointmentEditForm(item)}
+    </article>
+  `).join("");
+  bindAppointmentActions(appointmentsList);
 }
 
-function renderAgendaFinance(payload) {
-  if (!agendaFinanceCards || !payload) return;
-  agendaFinanceCards.innerHTML = [
-    metricCard("Previsto do dia", payload.day.forecast_label, "Pendentes + confirmados"),
-    metricCard("Realizado do dia", payload.day.realized_label, "Somente concluídos"),
-    metricCard("Previsto da semana", payload.week.forecast_label, `${formatDate(payload.week_start)} a ${formatDate(payload.week_end)}`),
-    metricCard("Realizado da semana", payload.week.realized_label, "Somente concluídos"),
-  ].join("");
+function renderAppointmentTable(container, items, emptyMessage = "Nenhum registro encontrado.") {
+  if (!items.length) {
+    container.innerHTML = `<p class="ops-empty">${emptyMessage}</p>`;
+    return;
+  }
+  container.innerHTML = `
+    <table class="ops-table">
+      <thead>
+        <tr>
+          <th>Data</th><th>Hora</th><th>Cliente</th><th>Serviço</th><th>Valor</th><th>Status</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item) => `
+          <tr>
+            <td>${formatDate(item.appointment_date)}</td>
+            <td>${escapeHtml(item.appointment_time)}</td>
+            <td><button class="ops-table-link" type="button" data-client-history="${item.client_id}">${escapeHtml(item.client_name)}</button><small>${escapeHtml(item.client_phone)}</small></td>
+            <td>${escapeHtml(item.service_name)}<small>${escapeHtml(item.duration_minutes)} min</small></td>
+            <td>${escapeHtml(item.price_label || moneyLabel(item.price_cents))}</td>
+            <td><span class="ops-status ${statusClass(item.status)}">${escapeHtml(item.status)}</span></td>
+            <td>${appointmentActions(item)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+  bindAppointmentActions(container);
 }
 
 function renderCalendar(calendar) {
-  if (!calendarGrid) return;
   calendarMonthLabel.textContent = monthLabel(calendar.month);
   const dayMap = new Map(calendar.days.map((day) => [day.appointment_date, day]));
   const firstDate = new Date(`${calendar.start}T12:00:00`);
   const lastDate = new Date(`${calendar.end}T12:00:00`);
   const leadingBlanks = (firstDate.getDay() + 6) % 7;
   const cells = [];
-  for (let index = 0; index < leadingBlanks; index += 1) {
-    cells.push("<span class='calendar-day empty'></span>");
-  }
+  for (let index = 0; index < leadingBlanks; index += 1) cells.push("<span class='ops-day empty'></span>");
   for (let day = 1; day <= lastDate.getDate(); day += 1) {
     const date = `${calendar.month}-${String(day).padStart(2, "0")}`;
     const info = dayMap.get(date);
-    const isToday = date === todayIso();
-    const isSelected = date === adminDate.value;
     cells.push(`
-      <button class="calendar-day ${info ? `density-${info.density}` : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}" type="button" data-calendar-date="${date}">
+      <button class="ops-day ${date === todayIso() ? "today" : ""} ${date === adminDate.value ? "selected" : ""} ${info ? `density-${info.density}` : ""}" type="button" data-calendar-date="${date}">
         <span>${day}</span>
         ${info ? `<strong>${info.total}</strong>` : ""}
       </button>
@@ -406,82 +317,6 @@ function renderCalendar(calendar) {
   });
 }
 
-function renderPending(items) {
-  if (!pendingAppointmentsList) return;
-  renderAppointmentCards(pendingAppointmentsList, items, "Nenhum agendamento pendente.", true);
-}
-
-async function loadCalendar() {
-  const payload = await api(`/api/admin/calendar?month=${currentCalendarMonth}`);
-  renderCalendar(payload.calendar);
-}
-
-async function loadPendingAppointments() {
-  const payload = await api("/api/admin/pending-appointments");
-  renderPending(payload.appointments);
-}
-
-async function loadAgendaFinance() {
-  const payload = await api(`/api/admin/finance-summary?date=${adminDate.value}`);
-  renderAgendaFinance(payload.finance);
-}
-
-async function refreshAgenda() {
-  await Promise.all([
-    loadAppointments(),
-    loadCalendar(),
-    loadPendingAppointments(),
-    loadAgendaFinance(),
-    loadDashboard(),
-  ]);
-}
-
-async function loadClientHistory(clientId) {
-  try {
-    const payload = await api(`/api/admin/clients/${clientId}`);
-    const history = payload.history;
-    const client = history.client;
-    const services = history.services.length
-      ? history.services.map((service) => `<li>${escapeHtml(service.name)} <strong>${service.total}</strong></li>`).join("")
-      : "Nenhum serviço concluído ainda";
-    const next = history.next_appointment
-      ? `${formatDate(history.next_appointment.appointment_date)} às ${history.next_appointment.appointment_time} · ${history.next_appointment.service_name}`
-      : "Sem próximo atendimento";
-    let modal = document.querySelector("#clientHistoryModal");
-    if (!modal) {
-      modal = document.createElement("div");
-      modal.id = "clientHistoryModal";
-      modal.className = "client-history-modal hidden";
-      document.body.appendChild(modal);
-    }
-    modal.innerHTML = `
-      <div class="client-history-panel">
-        <button class="modal-close" type="button" data-close-client-history>Fechar</button>
-        <p class="eyebrow">Histórico da cliente</p>
-        <h2>${escapeHtml(client.name)}</h2>
-        <div class="history-grid">
-          <span>Telefone<strong>${escapeHtml(client.phone)}</strong></span>
-          <span>Bairro<strong>${escapeHtml(client.neighborhood || "Não informado")}</strong></span>
-          <span>Visitas concluídas<strong>${history.total_visits}</strong></span>
-          <span>Total gasto<strong>${escapeHtml(history.total_spent_label)}</strong></span>
-          <span>Último atendimento<strong>${history.last_visit ? formatDate(history.last_visit) : "Nenhum"}</strong></span>
-          <span>Próximo atendimento<strong>${escapeHtml(next)}</strong></span>
-          <span>Status<strong>${history.recurring ? "Cliente recorrente" : "Nova cliente"}</strong></span>
-        </div>
-        <h3>Serviços já realizados</h3>
-        ${history.services.length ? `<ul>${services}</ul>` : `<p>${services}</p>`}
-      </div>
-    `;
-    modal.classList.remove("hidden");
-    modal.querySelector("[data-close-client-history]").addEventListener("click", () => modal.classList.add("hidden"));
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) modal.classList.add("hidden");
-    }, { once: true });
-  } catch (error) {
-    setActionMessage(error.message || "Não foi possível carregar o histórico da cliente.");
-  }
-}
-
 async function loadDashboard() {
   const payload = await api("/api/admin/dashboard");
   const dashboard = payload.dashboard;
@@ -492,192 +327,277 @@ async function loadDashboard() {
     metricCard("Confirmados", dashboard.confirmed_today),
     metricCard("Concluídos", dashboard.completed_today),
     metricCard("Cancelados", dashboard.canceled_today),
-    metricCard("Previsto hoje", dashboard.forecast_today_label),
-    metricCard("Realizado hoje", dashboard.realized_today_label),
-    metricCard("Previsto semana", dashboard.forecast_week_label),
-    metricCard("Realizado semana", dashboard.realized_week_label),
-    metricCard(
-      "Próximo atendimento",
-      next ? `${next.appointment_date} às ${next.appointment_time}` : "Nenhum",
-      next ? `${next.client_name} · ${next.service_name}` : "Agenda livre por enquanto",
-    ),
+    metricCard("Faturamento previsto", dashboard.forecast_today_label, "Hoje"),
+    metricCard("Faturamento realizado", dashboard.realized_today_label, "Hoje"),
+    metricCard("Próximo atendimento", next ? `${formatDate(next.appointment_date)} ${next.appointment_time}` : "Nenhum", next ? `${next.client_name} · ${next.service_name}` : "Agenda livre"),
+  ].join("");
+  const todayPayload = await api(`/api/admin/appointments?date=${todayIso()}`);
+  dashboardTodayList.innerHTML = todayPayload.appointments.slice(0, 4).map((item) => `
+    <div class="ops-mini-row"><strong>${escapeHtml(item.appointment_time)}</strong><span>${escapeHtml(item.client_name)} · ${escapeHtml(item.service_name)}</span><em>${escapeHtml(item.status)}</em></div>
+  `).join("") || `<p class="ops-empty">Nenhum atendimento hoje.</p>`;
+  const pendingPayload = await api("/api/admin/pending-appointments");
+  dashboardPendingList.innerHTML = pendingPayload.appointments.slice(0, 4).map((item) => `
+    <div class="ops-mini-row"><strong>${formatDate(item.appointment_date)}</strong><span>${escapeHtml(item.client_name)} · ${escapeHtml(item.service_name)}</span><em>${escapeHtml(item.appointment_time)}</em></div>
+  `).join("") || `<p class="ops-empty">Sem pendências.</p>`;
+}
+
+async function loadAgendaFinance() {
+  const payload = await api(`/api/admin/finance-summary?date=${adminDate.value}`);
+  const finance = payload.finance;
+  agendaFinanceCards.innerHTML = [
+    metricCard("Previsto do dia", finance.day.forecast_label, "Pendentes + confirmados"),
+    metricCard("Realizado do dia", finance.day.realized_label, "Somente concluídos"),
+    metricCard("Previsto da semana", finance.week.forecast_label, `${formatDate(finance.week_start)} a ${formatDate(finance.week_end)}`),
+    metricCard("Realizado da semana", finance.week.realized_label, "Somente concluídos"),
   ].join("");
 }
 
-async function loadAdminServices() {
-  const payload = await api("/api/admin/catalog");
-  adminServiceOptions = payload.catalog || [];
-  const serviceFilter = appointmentFilters?.querySelector("select[name='service_id']");
-  if (serviceFilter && serviceFilter.options.length <= 1) {
-    serviceFilter.innerHTML = `<option value="">Todos</option>${serviceOptions("")}`;
-  }
-  adminServicesList.classList.add("service-editor-grid");
-  adminServicesList.innerHTML = payload.catalog
-    .map((service) => `
-      <form class="service-editor-card" data-service-form="${service.key}">
-        <button class="service-photo-button" type="button" data-service-photo-pick="${service.key}" aria-label="Alterar foto de ${service.name}">
-          ${
-            service.image
-              ? `<img src="${service.image}" alt="${service.name}" loading="lazy" decoding="async">`
-              : `<span>${service.icon || "✦"}</span>`
-          }
-          <small>Alterar foto</small>
-        </button>
-        <input class="hidden" type="file" accept="image/jpeg,image/png,image/webp" data-service-photo-input="${service.key}">
-        <div>
-          <span>Serviço</span>
-          <strong>${service.name}</strong>
-          <small>${service.category || "Catálogo"} · ${service.duration_label} · ${service.bookable === false ? "Adicional" : service.service_id ? "Agendamento direto" : "Sob consulta"}</small>
-        </div>
-        <label>
-          Nome no catálogo
-          <input name="name" value="${service.name}" required>
-        </label>
-        <label>
-          Valor
-          <input name="price_label" value="${service.price_label}" required>
-        </label>
-        <label>
-          Duração
-          <input name="duration_label" value="${service.duration_label}" required>
-        </label>
-        <button class="button secondary full" type="submit">Salvar serviço</button>
-        <p class="form-message" data-service-message></p>
-      </form>
-    `)
-    .join("") || "<p class='form-message'>Nenhum serviço cadastrado.</p>";
+async function loadCalendar() {
+  const payload = await api(`/api/admin/calendar?month=${currentCalendarMonth}`);
+  renderCalendar(payload.calendar);
+}
 
-  adminServicesList.querySelectorAll("[data-service-photo-pick]").forEach((button) => {
-    button.addEventListener("click", () => {
-      adminServicesList.querySelector(`[data-service-photo-input="${button.dataset.servicePhotoPick}"]`)?.click();
-    });
-  });
+async function loadAppointments() {
+  const filters = new URLSearchParams(new FormData(appointmentFilters));
+  filters.set("date", adminDate.value);
+  const payload = await api(`/api/admin/appointments?${filters.toString()}`);
+  selectedDateTitle.textContent = `Agenda de ${formatDate(adminDate.value)}`;
+  renderTimeline(payload.appointments);
+}
 
-  adminServicesList.querySelectorAll("[data-service-photo-input]").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const form = input.closest(".service-editor-card");
-      const message = form?.querySelector("[data-service-message]");
-      if (message) message.textContent = "Enviando foto...";
-      const formData = new FormData();
-      formData.append("photo", file);
-      try {
-        await uploadApi(`/api/admin/catalog/photo/${input.dataset.servicePhotoInput}`, formData);
-        if (message) message.textContent = "Foto atualizada.";
-        await loadAdminServices();
-      } catch (error) {
-        if (message) message.textContent = error.message || "Não foi possível trocar a foto.";
-        input.value = "";
-      }
-    });
-  });
+async function loadPendingAppointments() {
+  const payload = await api("/api/admin/pending-appointments");
+  renderAppointmentTable(pendingAppointmentsList, payload.appointments, "Nenhum agendamento pendente.");
+}
 
-  adminServicesList.querySelectorAll("[data-service-form]").forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const message = form.querySelector("[data-service-message]");
-      const button = form.querySelector("button[type='submit']");
-      const data = Object.fromEntries(new FormData(form));
-      if (!data.name.trim()) {
-        message.textContent = "Informe o nome do serviço.";
-        return;
-      }
-      if (!data.price_label.trim()) {
-        message.textContent = "Informe o valor do serviço.";
-        return;
-      }
-      if (!data.duration_label.trim()) {
-        message.textContent = "Informe a duração do serviço.";
-        return;
-      }
-      button.disabled = true;
-      button.textContent = "Salvando...";
-      message.textContent = "";
-      try {
-        await api(`/api/admin/catalog/${form.dataset.serviceForm}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            name: data.name.trim(),
-            price_label: data.price_label.trim(),
-            duration_label: data.duration_label.trim(),
-          }),
-        });
-        message.textContent = "Serviço atualizado.";
-        await loadAdminServices();
-      } catch (error) {
-        message.textContent = error.message || "Não foi possível salvar.";
-        button.disabled = false;
-        button.textContent = "Salvar serviço";
-      }
-    });
-  });
+async function refreshAgenda() {
+  await Promise.all([loadAppointments(), loadCalendar(), loadAgendaFinance(), loadPendingAppointments()]);
+}
+
+async function refreshAll() {
+  await Promise.all([loadDashboard(), refreshAgenda(), loadClients(), loadFinance()]);
 }
 
 async function loadClients() {
   const payload = await api("/api/admin/clients");
-  clientsList.innerHTML = payload.clients
-    .map((client) => metricCard(client.name, client.phone, `${client.neighborhood || "Bairro não informado"} · ${client.visits} visita(s) · Última: ${client.last_visit || "sem histórico"}`))
-    .join("") || "<p class='form-message'>Nenhuma cliente cadastrada ainda.</p>";
+  clientsCache = payload.clients || [];
+  renderClients();
+}
+
+function renderClients() {
+  const term = String(clientSearch?.value || "").toLowerCase();
+  const clients = clientsCache.filter((client) => [client.name, client.phone, client.neighborhood].join(" ").toLowerCase().includes(term));
+  if (!clients.length) {
+    clientsList.innerHTML = `<p class="ops-empty">Nenhuma cliente encontrada.</p>`;
+    return;
+  }
+  clientsList.innerHTML = `
+    <table class="ops-table">
+      <thead><tr><th>Cliente</th><th>Telefone</th><th>Bairro</th><th>Visitas</th><th>Último</th><th>Próximo</th><th>Total gasto</th></tr></thead>
+      <tbody>${clients.map((client) => `
+        <tr>
+          <td><button class="ops-table-link" type="button" data-client-history="${client.id}">${escapeHtml(client.name)}</button></td>
+          <td>${escapeHtml(client.phone)}</td>
+          <td>${escapeHtml(client.neighborhood || "Não informado")}</td>
+          <td>${client.visits || 0}</td>
+          <td>${client.last_visit ? formatDate(client.last_visit) : "-"}</td>
+          <td>${client.next_visit ? escapeHtml(client.next_visit) : "-"}</td>
+          <td>${escapeHtml(client.total_spent_label || "R$ 0,00")}</td>
+        </tr>
+      `).join("")}</tbody>
+    </table>
+  `;
+  clientsList.querySelectorAll("[data-client-history]").forEach((button) => {
+    button.addEventListener("click", () => openClientHistory(button.dataset.clientHistory));
+  });
+}
+
+async function openClientHistory(clientId) {
+  const payload = await api(`/api/admin/clients/${clientId}`);
+  const history = payload.history;
+  const client = history.client;
+  let modal = document.querySelector("#opsModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "opsModal";
+    modal.className = "ops-modal hidden";
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <section class="ops-modal-panel">
+      <button class="ops-modal-close" type="button" data-close-modal>Fechar</button>
+      <span>Histórico da cliente</span>
+      <h2>${escapeHtml(client.name)}</h2>
+      <div class="ops-metrics compact">
+        ${metricCard("Telefone", client.phone)}
+        ${metricCard("Bairro", client.neighborhood || "Não informado")}
+        ${metricCard("Visitas concluídas", history.total_visits)}
+        ${metricCard("Total gasto", history.total_spent_label)}
+        ${metricCard("Último atendimento", history.last_visit ? formatDate(history.last_visit) : "Nenhum")}
+        ${metricCard("Status", history.recurring ? "Recorrente" : "Nova cliente")}
+      </div>
+      <h3>Serviços concluídos</h3>
+      <div class="ops-list">
+        ${history.services.length ? history.services.map((service) => `<div class="ops-mini-row"><span>${escapeHtml(service.name)}</span><strong>${service.total}</strong></div>`).join("") : `<p class="ops-empty">Nenhum serviço concluído ainda.</p>`}
+      </div>
+    </section>
+  `;
+  modal.classList.remove("hidden");
+  modal.querySelector("[data-close-modal]").addEventListener("click", () => modal.classList.add("hidden"));
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) modal.classList.add("hidden");
+  }, { once: true });
 }
 
 async function loadFinance() {
   const payload = await api("/api/admin/finance");
   const finance = payload.finance;
   financeSummary.innerHTML = [
-    metricCard("Previsto hoje", finance.daily_forecast_label, "Pendentes + confirmados."),
-    metricCard("Realizado hoje", finance.daily_realized_label, "Somente concluídos."),
-    metricCard("Previsto semana", finance.weekly_forecast_label, "Pendentes + confirmados."),
-    metricCard("Realizado semana", finance.weekly_realized_label, "Somente concluídos."),
-    metricCard("Despesas", "Preparado", "Módulo pronto para receber despesas."),
-    metricCard("Lucro estimado", "Preparado", "Será ativado junto ao financeiro completo."),
+    metricCard("Previsto hoje", finance.daily_forecast_label, "Pendentes + confirmados"),
+    metricCard("Realizado hoje", finance.daily_realized_label, "Concluídos"),
+    metricCard("Previsto semana", finance.weekly_forecast_label, "Pendentes + confirmados"),
+    metricCard("Realizado semana", finance.weekly_realized_label, "Concluídos"),
+    metricCard("Previsto mês", finance.monthly_forecast_label, "Pendentes + confirmados"),
+    metricCard("Realizado mês", finance.monthly_realized_label, "Concluídos"),
   ].join("");
+}
+
+async function loadAdminServices() {
+  const payload = await api("/api/admin/catalog");
+  catalog = payload.catalog || [];
+  const serviceFilter = appointmentFilters.querySelector("select[name='service_id']");
+  serviceFilter.innerHTML = `<option value="">Todos os serviços</option>${serviceOptions("")}`;
+  adminServicesList.innerHTML = catalog.map((service) => `
+    <form class="ops-service-card" data-service-form="${service.key}">
+      <button class="ops-service-photo" type="button" data-service-photo-pick="${service.key}">
+        ${service.image ? `<img src="${service.image}" alt="${escapeHtml(service.name)}" loading="lazy" decoding="async">` : `<span>${escapeHtml(service.icon || "LR")}</span>`}
+        <small>Alterar foto</small>
+      </button>
+      <input class="hidden" type="file" accept="image/jpeg,image/png,image/webp" data-service-photo-input="${service.key}">
+      <label>Nome<input name="name" value="${escapeHtml(service.name)}" required></label>
+      <label>Categoria<input name="category" value="${escapeHtml(service.category || "")}"></label>
+      <label>Valor<input name="price_label" value="${escapeHtml(service.price_label || "")}" required></label>
+      <label>Duração<input name="duration_label" value="${escapeHtml(service.duration_label || "")}" required></label>
+      <label class="wide">Descrição<textarea name="description" rows="3">${escapeHtml(service.description || "")}</textarea></label>
+      <label class="ops-check"><input name="active" type="checkbox" ${service.active === false ? "" : "checked"} ${service.bookable === false ? "disabled" : ""}> Ativo no agendamento</label>
+      <button class="ops-button primary" type="submit">Salvar serviço</button>
+      <p class="ops-message" data-service-message></p>
+    </form>
+  `).join("");
+
+  adminServicesList.querySelectorAll("[data-service-photo-pick]").forEach((button) => {
+    button.addEventListener("click", () => adminServicesList.querySelector(`[data-service-photo-input="${button.dataset.servicePhotoPick}"]`)?.click());
+  });
+  adminServicesList.querySelectorAll("[data-service-photo-input]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const message = input.closest(".ops-service-card").querySelector("[data-service-message]");
+      message.textContent = "Enviando foto...";
+      const formData = new FormData();
+      formData.append("photo", file);
+      try {
+        await uploadApi(`/api/admin/catalog/photo/${input.dataset.servicePhotoInput}`, formData);
+        await loadAdminServices();
+      } catch (error) {
+        message.textContent = error.message || "Não foi possível trocar a foto.";
+      }
+    });
+  });
+  adminServicesList.querySelectorAll("[data-service-form]").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      const message = form.querySelector("[data-service-message]");
+      try {
+        await api(`/api/admin/catalog/${form.dataset.serviceForm}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: data.name,
+            category: data.category,
+            price_label: data.price_label,
+            duration_label: data.duration_label,
+            description: data.description,
+            active: Boolean(data.active),
+          }),
+        });
+        message.textContent = "Serviço atualizado.";
+        await loadAdminServices();
+      } catch (error) {
+        message.textContent = error.message || "Não foi possível salvar.";
+      }
+    });
+  });
+}
+
+async function loadSettings() {
+  const payload = await api("/api/admin/settings");
+  weeklyHoursList.innerHTML = payload.hours.map((hour) => `
+    <form class="ops-week-row" data-week-hour="${hour.id}">
+      <strong>${weekdays[hour.weekday] || `Dia ${hour.weekday}`}</strong>
+      <input name="start_time" type="time" value="${escapeHtml(hour.start_time)}">
+      <input name="end_time" type="time" value="${escapeHtml(hour.end_time)}">
+      <input name="slot_minutes" type="number" min="15" max="240" step="15" value="${hour.slot_minutes}">
+      <label><input name="active" type="checkbox" ${hour.active ? "checked" : ""}> Ativo</label>
+      <button class="ops-button ghost" type="submit">Salvar</button>
+    </form>
+  `).join("");
+  weeklyHoursList.querySelectorAll("[data-week-hour]").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      await api(`/api/admin/weekly-hours/${form.dataset.weekHour}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...data, active: Boolean(data.active) }),
+      });
+      await refreshAgenda();
+    });
+  });
+
+  const blockedDays = payload.blocked_days.map((day) => `<div class="ops-mini-row"><span>Dia bloqueado: ${formatDate(day.block_date)} ${escapeHtml(day.reason || "")}</span><button class="ops-button danger" type="button" data-delete-block="${day.id}">Remover</button></div>`).join("");
+  const blockedSlots = (payload.blocked_slots || []).map((slot) => `<div class="ops-mini-row"><span>Horário bloqueado: ${formatDate(slot.slot_date)} ${escapeHtml(slot.slot_time)} ${escapeHtml(slot.reason || "")}</span><button class="ops-button danger" type="button" data-delete-block-slot="${slot.id}">Remover</button></div>`).join("");
+  const extras = payload.extra_slots.map((slot) => `<div class="ops-mini-row"><span>Extra: ${formatDate(slot.slot_date)} ${escapeHtml(slot.slot_time)} ${escapeHtml(slot.note || "")}</span><button class="ops-button danger" type="button" data-delete-extra="${slot.id}">Remover</button></div>`).join("");
+  settingsList.innerHTML = blockedDays + blockedSlots + extras || `<p class="ops-empty">Nenhum bloqueio ou extra cadastrado.</p>`;
+  settingsList.querySelectorAll("[data-delete-block]").forEach((button) => button.addEventListener("click", async () => {
+    await api(`/api/admin/blocked-days/${button.dataset.deleteBlock}`, { method: "DELETE" });
+    await loadSettings();
+    await refreshAgenda();
+  }));
+  settingsList.querySelectorAll("[data-delete-block-slot]").forEach((button) => button.addEventListener("click", async () => {
+    await api(`/api/admin/blocked-slots/${button.dataset.deleteBlockSlot}`, { method: "DELETE" });
+    await loadSettings();
+    await refreshAgenda();
+  }));
+  settingsList.querySelectorAll("[data-delete-extra]").forEach((button) => button.addEventListener("click", async () => {
+    await api(`/api/admin/extra-slots/${button.dataset.deleteExtra}`, { method: "DELETE" });
+    await loadSettings();
+    await refreshAgenda();
+  }));
 }
 
 async function loadAdminGallery() {
   const payload = await api("/api/admin/gallery");
-  adminGalleryList.classList.add("admin-gallery-grid");
-  adminGalleryList.innerHTML = payload.gallery
-    .map((item) => {
-      const number = String(item.index).padStart(2, "0");
-      return `
-        <article class="admin-gallery-card">
-          <button class="gallery-replace-button" type="button" data-gallery-pick="${item.index}" aria-label="Alterar foto ${number}">
-            <img src="${item.src}" alt="${item.alt}" loading="lazy" decoding="async">
-            <span>${item.featured ? "Destaque" : `Foto ${number}`}</span>
-          </button>
-          <input class="hidden" type="file" accept="image/jpeg,image/png,image/webp" data-gallery-input="${item.index}">
-          <p>Toque na foto para substituir.</p>
-        </article>
-      `;
-    })
-    .join("");
-
-  adminGalleryList.querySelectorAll("[data-gallery-pick]").forEach((button) => {
-    button.addEventListener("click", () => {
-      adminGalleryList.querySelector(`[data-gallery-input="${button.dataset.galleryPick}"]`)?.click();
-    });
-  });
-
-  adminGalleryList.querySelectorAll("[data-gallery-input]").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const card = input.closest(".admin-gallery-card");
-      const message = card?.querySelector("p");
-      if (message) message.textContent = "Enviando foto...";
-      const formData = new FormData();
-      formData.append("index", input.dataset.galleryInput);
-      formData.append("photo", file);
-      try {
-        await uploadApi("/api/admin/gallery", formData);
-        await loadAdminGallery();
-      } catch (error) {
-        if (message) message.textContent = error.message || "Não foi possível trocar a foto.";
-        input.value = "";
-      }
-    });
-  });
+  adminGalleryList.innerHTML = payload.gallery.map((item) => `
+    <article class="ops-gallery-card">
+      <button type="button" data-gallery-pick="${item.index}">
+        <img src="${item.src}" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async">
+        <span>Foto ${String(item.index).padStart(2, "0")}</span>
+      </button>
+      <input class="hidden" type="file" accept="image/jpeg,image/png,image/webp" data-gallery-input="${item.index}">
+    </article>
+  `).join("");
+  adminGalleryList.querySelectorAll("[data-gallery-pick]").forEach((button) => button.addEventListener("click", () => {
+    adminGalleryList.querySelector(`[data-gallery-input="${button.dataset.galleryPick}"]`)?.click();
+  }));
+  adminGalleryList.querySelectorAll("[data-gallery-input]").forEach((input) => input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("index", input.dataset.galleryInput);
+    formData.append("photo", file);
+    await uploadApi("/api/admin/gallery", formData);
+    await loadAdminGallery();
+  }));
 }
 
 async function loadConfig() {
@@ -685,7 +605,7 @@ async function loadConfig() {
   const config = payload.config;
   configSummary.innerHTML = [
     metricCard("Ambiente", config.app_env),
-    metricCard("Banco de dados", config.database),
+    metricCard("Banco", config.database),
     metricCard("WhatsApp", config.whatsapp_configured ? "Configurado" : "Pendente"),
     metricCard("Senha admin", config.admin_password_configured ? "Configurada" : "Pendente"),
   ].join("");
@@ -695,53 +615,30 @@ async function loadAdminModules() {
   await loadAdminServices();
   await Promise.all([
     loadDashboard(),
-    loadAppointments(),
-    loadCalendar(),
-    loadPendingAppointments(),
-    loadAgendaFinance(),
-    loadSettings(),
+    refreshAgenda(),
     loadClients(),
     loadFinance(),
+    loadSettings(),
     loadAdminGallery(),
     loadConfig(),
   ]);
 }
 
-async function loadAppointments() {
-  const filters = appointmentFilters ? new URLSearchParams(new FormData(appointmentFilters)) : new URLSearchParams();
-  filters.set("date", adminDate.value);
-  const payload = await api(`/api/admin/appointments?${filters.toString()}`);
-  if (selectedDateTitle) selectedDateTitle.textContent = `Agenda de ${formatDate(adminDate.value)}`;
-  renderAppointments(payload.appointments);
-}
-
-async function loadSettings() {
-  const payload = await api("/api/admin/settings");
-  renderSettings(payload);
-}
-
 async function bootAdmin() {
   adminDate.value = todayIso();
   currentCalendarMonth = adminDate.value.slice(0, 7);
-  logoutButton.classList.add("hidden");
+  opsTodayLabel.textContent = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
   const session = await api("/api/admin/session");
   setAuthed(session.authenticated);
-  if (session.authenticated) {
-    setModule("dashboard");
-    await loadAdminModules();
-  }
+  if (session.authenticated) await loadAdminModules();
 }
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   loginMessage.textContent = "";
   try {
-    await api("/api/admin/login", {
-      method: "POST",
-      body: JSON.stringify(Object.fromEntries(new FormData(loginForm))),
-    });
+    await api("/api/admin/login", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(loginForm))) });
     setAuthed(true);
-    setModule("dashboard");
     await loadAdminModules();
   } catch (error) {
     loginMessage.textContent = error.message;
@@ -753,77 +650,59 @@ logoutButton.addEventListener("click", async () => {
   setAuthed(false);
 });
 
-adminTabs.forEach((tab) => {
-  tab.addEventListener("click", () => setModule(tab.dataset.adminModule));
+adminTabs.forEach((tab) => tab.addEventListener("click", () => setModule(tab.dataset.adminModule)));
+document.querySelectorAll("[data-jump-module]").forEach((button) => button.addEventListener("click", () => setModule(button.dataset.jumpModule)));
+clientSearch?.addEventListener("input", renderClients);
+appointmentFilters.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await loadAppointments();
 });
-
+appointmentFilters.addEventListener("input", () => window.setTimeout(loadAppointments, 250));
 adminDate.addEventListener("change", async () => {
   currentCalendarMonth = adminDate.value.slice(0, 7);
   await refreshAgenda();
 });
-appointmentFilters?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await loadAppointments();
-});
-appointmentFilters?.addEventListener("input", () => {
-  window.clearTimeout(appointmentFilters._timer);
-  appointmentFilters._timer = window.setTimeout(loadAppointments, 350);
-});
-
-prevDayButton?.addEventListener("click", () => {
+prevDayButton.addEventListener("click", async () => {
   adminDate.value = addDays(adminDate.value, -1);
   currentCalendarMonth = adminDate.value.slice(0, 7);
-  refreshAgenda();
+  await refreshAgenda();
 });
-nextDayButton?.addEventListener("click", () => {
+nextDayButton.addEventListener("click", async () => {
   adminDate.value = addDays(adminDate.value, 1);
   currentCalendarMonth = adminDate.value.slice(0, 7);
-  refreshAgenda();
+  await refreshAgenda();
 });
-todayButton?.addEventListener("click", () => {
+todayButton.addEventListener("click", async () => {
   adminDate.value = todayIso();
   currentCalendarMonth = adminDate.value.slice(0, 7);
-  refreshAgenda();
+  await refreshAgenda();
 });
-
-prevMonthButton?.addEventListener("click", () => {
+prevMonthButton.addEventListener("click", async () => {
   currentCalendarMonth = addMonths(currentCalendarMonth, -1);
-  loadCalendar();
+  await loadCalendar();
 });
-
-nextMonthButton?.addEventListener("click", () => {
+nextMonthButton.addEventListener("click", async () => {
   currentCalendarMonth = addMonths(currentCalendarMonth, 1);
-  loadCalendar();
+  await loadCalendar();
 });
 
 blockDayForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await api("/api/admin/blocked-days", {
-    method: "POST",
-    body: JSON.stringify(Object.fromEntries(new FormData(blockDayForm))),
-  });
+  await api("/api/admin/blocked-days", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(blockDayForm))) });
   blockDayForm.reset();
   await loadSettings();
   await refreshAgenda();
 });
-
-blockSlotForm?.addEventListener("submit", async (event) => {
+blockSlotForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await api("/api/admin/blocked-slots", {
-    method: "POST",
-    body: JSON.stringify(Object.fromEntries(new FormData(blockSlotForm))),
-  });
+  await api("/api/admin/blocked-slots", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(blockSlotForm))) });
   blockSlotForm.reset();
   await loadSettings();
   await refreshAgenda();
 });
-
 extraSlotForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await api("/api/admin/extra-slots", {
-    method: "POST",
-    body: JSON.stringify(Object.fromEntries(new FormData(extraSlotForm))),
-  });
+  await api("/api/admin/extra-slots", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(extraSlotForm))) });
   extraSlotForm.reset();
   await loadSettings();
   await refreshAgenda();

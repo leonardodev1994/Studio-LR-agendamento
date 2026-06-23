@@ -810,6 +810,8 @@ def public_catalog():
     for default in CATALOG_DEFAULTS:
         item = dict(default)
         service = services.get(item["key"]) if item.get("bookable", True) else None
+        if item.get("bookable", True) and not service:
+            continue
         if service:
             item.update(
                 {
@@ -827,12 +829,58 @@ def public_catalog():
                 {
                     key: value
                     for key, value in custom.items()
-                    if key in ["name", "price_label", "duration_label", "image", "icon"]
+                    if key in ["name", "price_label", "duration_label", "image", "icon", "category", "description"]
                 }
             )
         if item.get("image") and str(item["image"]).startswith("/assets/"):
             item["image"] = optimized_asset_path(item["image"])
         item.setdefault("bookable", True)
+        catalog.append(item)
+    return catalog
+
+
+def admin_catalog():
+    conn = db()
+    services = {
+        row["catalog_key"]: dict(row)
+        for row in execute(
+            conn,
+            "SELECT * FROM services WHERE catalog_key IS NOT NULL ORDER BY id",
+        ).fetchall()
+    }
+    overrides = catalog_overrides(conn)
+    conn.close()
+
+    catalog = []
+    for default in CATALOG_DEFAULTS:
+        item = dict(default)
+        service = services.get(item["key"]) if item.get("bookable", True) else None
+        if service:
+            item.update(
+                {
+                    "service_id": service["id"],
+                    "name": service["name"],
+                    "price_label": price_label(service["price_cents"]),
+                    "duration_label": f"{service['duration_minutes']} min",
+                    "description": service["description"],
+                    "price_cents": service["price_cents"],
+                    "duration_minutes": service["duration_minutes"],
+                    "active": bool(service["active"]),
+                }
+            )
+        custom = overrides.get(item["key"], {})
+        if isinstance(custom, dict):
+            item.update(
+                {
+                    key: value
+                    for key, value in custom.items()
+                    if key in ["name", "price_label", "duration_label", "image", "icon", "category", "description"]
+                }
+            )
+        if item.get("image") and str(item["image"]).startswith("/assets/"):
+            item["image"] = optimized_asset_path(item["image"])
+        item.setdefault("bookable", True)
+        item.setdefault("active", bool(service) if item.get("bookable", True) else True)
         catalog.append(item)
     return catalog
 
@@ -854,16 +902,28 @@ def clients_summary():
         """
         SELECT
             c.id, c.name, c.phone, c.neighborhood, c.created_at,
-            COUNT(a.id) AS visits,
-            MAX(a.appointment_date) AS last_visit
+            SUM(CASE WHEN a.status = 'Concluído' THEN 1 ELSE 0 END) AS visits,
+            MAX(CASE WHEN a.status = 'Concluído' THEN a.appointment_date ELSE NULL END) AS last_visit,
+            MIN(CASE
+                WHEN a.status != 'Cancelado'
+                 AND (a.appointment_date > ? OR (a.appointment_date = ? AND a.appointment_time >= ?))
+                THEN a.appointment_date || ' ' || a.appointment_time
+                ELSE NULL
+            END) AS next_visit,
+            COALESCE(SUM(CASE WHEN a.status = 'Concluído' THEN s.price_cents ELSE 0 END), 0) AS total_spent
         FROM clients c
         LEFT JOIN appointments a ON a.client_id = c.id
+        LEFT JOIN services s ON s.id = a.service_id
         GROUP BY c.id, c.name, c.phone, c.neighborhood, c.created_at
         ORDER BY c.name
         """,
+        (dt.date.today().isoformat(), dt.date.today().isoformat(), dt.datetime.now().strftime("%H:%M")),
     ).fetchall()
     conn.close()
-    return rows_dict(rows)
+    clients = rows_dict(rows)
+    for client in clients:
+        client["total_spent_label"] = price_label(client["total_spent"])
+    return clients
 
 
 def finance_totals(conn, start_date, end_date):
@@ -893,16 +953,26 @@ def admin_finance_summary(date_value=None):
         base_date = dt.date.today()
     week_start = base_date - dt.timedelta(days=base_date.weekday())
     week_end = week_start + dt.timedelta(days=6)
+    month_start = base_date.replace(day=1)
+    if month_start.month == 12:
+        next_month = dt.date(month_start.year + 1, 1, 1)
+    else:
+        next_month = dt.date(month_start.year, month_start.month + 1, 1)
+    month_end = next_month - dt.timedelta(days=1)
     conn = db()
     day = finance_totals(conn, base_date.isoformat(), base_date.isoformat())
     week = finance_totals(conn, week_start.isoformat(), week_end.isoformat())
+    month = finance_totals(conn, month_start.isoformat(), month_end.isoformat())
     conn.close()
     return {
         "date": base_date.isoformat(),
         "week_start": week_start.isoformat(),
         "week_end": week_end.isoformat(),
+        "month_start": month_start.isoformat(),
+        "month_end": month_end.isoformat(),
         "day": day,
         "week": week,
+        "month": month,
     }
 
 
@@ -1560,7 +1630,7 @@ class Handler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/admin/services":
                 return self.json({"services": admin_services()})
             if parsed.path == "/api/admin/catalog":
-                return self.json({"catalog": public_catalog()})
+                return self.json({"catalog": admin_catalog()})
             if parsed.path == "/api/admin/clients":
                 return self.json({"clients": clients_summary()})
             if parsed.path == "/api/admin/finance":
@@ -1576,7 +1646,10 @@ class Handler(SimpleHTTPRequestHandler):
                             "weekly_forecast_label": finance["week"]["forecast_label"],
                             "weekly_realized_cents": finance["week"]["realized_cents"],
                             "weekly_realized_label": finance["week"]["realized_label"],
-                            "monthly_revenue_cents": 0,
+                            "monthly_forecast_cents": finance["month"]["forecast_cents"],
+                            "monthly_forecast_label": finance["month"]["forecast_label"],
+                            "monthly_realized_cents": finance["month"]["realized_cents"],
+                            "monthly_realized_label": finance["month"]["realized_label"],
                             "expenses_cents": 0,
                             "estimated_profit_cents": 0,
                             "status": "prepared",
@@ -1993,6 +2066,9 @@ class Handler(SimpleHTTPRequestHandler):
             name = str(payload.get("name", "")).strip()
             price_label_value = str(payload.get("price_label", "")).strip()
             duration_label_value = str(payload.get("duration_label", "")).strip()
+            category_value = str(payload.get("category", default.get("category", ""))).strip()
+            description_value = str(payload.get("description", default.get("description", ""))).strip()
+            active_value = bool(payload.get("active", True))
             if not name:
                 return self.bad("Informe o nome do serviço.")
             if not price_label_value:
@@ -2016,11 +2092,16 @@ class Handler(SimpleHTTPRequestHandler):
                         conn,
                         """
                         UPDATE services
-                        SET name = ?, price_cents = ?, duration_minutes = ?
+                        SET name = ?, price_cents = ?, duration_minutes = ?, description = ?, active = ?
                         WHERE catalog_key = ?
                         """,
-                        (name, price_cents, duration_minutes, item_key),
+                        (name, price_cents, duration_minutes, description_value, 1 if active_value else 0, item_key),
                     )
+                    overrides = catalog_overrides(conn)
+                    current = overrides.get(item_key, {}) if isinstance(overrides.get(item_key), dict) else {}
+                    current.update({"category": category_value})
+                    overrides[item_key] = current
+                    set_setting_value(conn, "catalog_overrides", json.dumps(overrides, ensure_ascii=False))
                 else:
                     overrides = catalog_overrides(conn)
                     current = overrides.get(item_key, {}) if isinstance(overrides.get(item_key), dict) else {}
@@ -2029,12 +2110,14 @@ class Handler(SimpleHTTPRequestHandler):
                             "name": name,
                             "price_label": price_label_value,
                             "duration_label": duration_label_value,
+                            "category": category_value,
+                            "description": description_value,
                         }
                     )
                     overrides[item_key] = current
                     set_setting_value(conn, "catalog_overrides", json.dumps(overrides, ensure_ascii=False))
                 conn.commit()
-                updated = next((item for item in public_catalog() if item["key"] == item_key), None)
+                updated = next((item for item in admin_catalog() if item["key"] == item_key), None)
                 return self.json({"item": updated})
             except Exception as exc:
                 if exc.__class__.__name__ not in ["IntegrityError", "UniqueViolation"]:
@@ -2087,6 +2170,40 @@ class Handler(SimpleHTTPRequestHandler):
                 if exc.__class__.__name__ not in ["IntegrityError", "UniqueViolation"]:
                     raise
                 return self.bad("Já existe um serviço com esse nome.", 409)
+            finally:
+                conn.close()
+
+        if len(parts) == 4 and parts[:3] == ["api", "admin", "weekly-hours"]:
+            try:
+                hour_id = int(parts[3])
+                start_time = str(payload.get("start_time", "")).strip()
+                end_time = str(payload.get("end_time", "")).strip()
+                slot_minutes = int(payload.get("slot_minutes", 90))
+                active = 1 if bool(payload.get("active", True)) else 0
+            except (TypeError, ValueError):
+                return self.bad("Dados do horário inválidos.")
+            if not start_time or not end_time:
+                return self.bad("Informe início e fim do atendimento.")
+            if slot_minutes < 15 or slot_minutes > 240:
+                return self.bad("O intervalo deve ter entre 15 e 240 minutos.")
+            conn = db()
+            try:
+                current = execute(conn, "SELECT id FROM weekly_hours WHERE id = ?", (hour_id,)).fetchone()
+                if not current:
+                    return self.bad("Horário de atendimento não encontrado.", 404)
+                execute(
+                    conn,
+                    """
+                    UPDATE weekly_hours
+                    SET start_time = ?, end_time = ?, slot_minutes = ?, active = ?
+                    WHERE id = ?
+                    """,
+                    (start_time, end_time, slot_minutes, active, hour_id),
+                )
+                conn.commit()
+                admin_log(f"horário semanal atualizado: #{hour_id}")
+                updated = execute(conn, "SELECT * FROM weekly_hours WHERE id = ?", (hour_id,)).fetchone()
+                return self.json({"hour": row_dict(updated)})
             finally:
                 conn.close()
 
