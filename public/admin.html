@@ -69,11 +69,40 @@
                 <p class="eyebrow">Agenda</p>
                 <h1>Agenda do dia</h1>
               </div>
-              <label>
-                Data
-                <input id="adminDate" type="date">
-              </label>
+              <div class="admin-date-tools">
+                <button class="button secondary" type="button" id="prevDayButton">Dia anterior</button>
+                <label>
+                  Data
+                  <input id="adminDate" type="date">
+                </label>
+                <button class="button secondary" type="button" id="todayButton">Hoje</button>
+                <button class="button secondary" type="button" id="nextDayButton">Próximo dia</button>
+              </div>
             </div>
+            <form id="appointmentFilters" class="admin-filters">
+              <label>
+                Status
+                <select name="status">
+                  <option value="">Todos</option>
+                  <option value="Pendente">Pendente</option>
+                  <option value="Confirmado">Confirmado</option>
+                  <option value="Cancelado">Cancelado</option>
+                  <option value="Concluído">Concluído</option>
+                </select>
+              </label>
+              <label>
+                Serviço
+                <select name="service_id">
+                  <option value="">Todos</option>
+                </select>
+              </label>
+              <label>
+                Cliente ou telefone
+                <input name="search" placeholder="Buscar">
+              </label>
+              <button class="button secondary" type="submit">Filtrar</button>
+            </form>
+            <p id="appointmentActionMessage" class="form-message"></p>
 
             <div id="appointmentsList" class="appointments-list"></div>
           </section>
@@ -130,6 +159,25 @@
                 <button class="button secondary full" type="submit">Bloquear</button>
               </form>
 
+              <form id="blockSlotForm" class="scheduler compact">
+                <h2>Bloquear horário</h2>
+                <div class="form-row two">
+                  <label>
+                    Data
+                    <input name="date" type="date" required>
+                  </label>
+                  <label>
+                    Hora
+                    <input name="time" type="time" required>
+                  </label>
+                </div>
+                <label>
+                  Motivo
+                  <input name="reason" placeholder="Indisponível">
+                </label>
+                <button class="button secondary full" type="submit">Bloquear horário</button>
+              </form>
+
               <form id="extraSlotForm" class="scheduler compact">
                 <h2>Horário extra</h2>
                 <div class="form-row two">
@@ -178,6 +226,6 @@
       </section>
     </main>
 
-    <script src="/admin.js?v=servicos-fotos-duracao-1"></script>
+    <script src="/admin.js?v=admin-agenda-1"></script>
   </body>
 </html>

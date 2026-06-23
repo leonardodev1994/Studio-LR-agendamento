@@ -382,6 +382,13 @@ class Database:
                 note TEXT NOT NULL DEFAULT '',
                 UNIQUE(slot_date, slot_time)
             );
+            CREATE TABLE IF NOT EXISTS blocked_slots (
+                id SERIAL PRIMARY KEY,
+                slot_date TEXT NOT NULL,
+                slot_time TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                UNIQUE(slot_date, slot_time)
+            );
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL DEFAULT '',
@@ -450,6 +457,13 @@ class Database:
             note TEXT NOT NULL DEFAULT '',
             UNIQUE(slot_date, slot_time)
         );
+        CREATE TABLE IF NOT EXISTS blocked_slots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slot_date TEXT NOT NULL,
+            slot_time TEXT NOT NULL,
+            reason TEXT NOT NULL DEFAULT '',
+            UNIQUE(slot_date, slot_time)
+        );
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL DEFAULT '',
@@ -491,6 +505,10 @@ def row_dict(row):
 
 def rows_dict(rows):
     return [dict(row) for row in rows]
+
+
+def admin_log(message):
+    print(f"[admin] {dt.datetime.now().isoformat(timespec='seconds')} {message}")
 
 
 def gallery_path(index):
@@ -577,12 +595,35 @@ def run_migrations(conn):
         }
         if "neighborhood" not in client_columns:
             execute(conn, "ALTER TABLE clients ADD COLUMN neighborhood TEXT NOT NULL DEFAULT ''")
+        execute(
+            conn,
+            """
+            CREATE TABLE IF NOT EXISTS blocked_slots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slot_date TEXT NOT NULL,
+                slot_time TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                UNIQUE(slot_date, slot_time)
+            )
+            """,
+        )
         return
 
     with conn.cursor() as cursor:
         cursor.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS catalog_key TEXT")
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_services_catalog_key ON services(catalog_key)")
         cursor.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS neighborhood TEXT NOT NULL DEFAULT ''")
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS blocked_slots (
+                id SERIAL PRIMARY KEY,
+                slot_date TEXT NOT NULL,
+                slot_time TEXT NOT NULL,
+                reason TEXT NOT NULL DEFAULT '',
+                UNIQUE(slot_date, slot_time)
+            )
+            """
+        )
 
 
 def bookable_catalog_items():
@@ -857,10 +898,37 @@ def dashboard_summary():
         """,
         (today, week_end),
     ).fetchone()["total"]
+    forecast_today = execute(
+        conn,
+        """
+        SELECT COALESCE(SUM(s.price_cents), 0) AS total
+        FROM appointments a
+        JOIN services s ON s.id = a.service_id
+        WHERE a.appointment_date = ? AND a.status != 'Cancelado'
+        """,
+        (today,),
+    ).fetchone()["total"]
+    status_rows = execute(
+        conn,
+        """
+        SELECT status, COUNT(*) AS total
+        FROM appointments
+        WHERE appointment_date = ?
+        GROUP BY status
+        """,
+        (today,),
+    ).fetchall()
     conn.close()
+    status_counts = {row["status"]: row["total"] for row in status_rows}
     return {
         "appointments_today": today_total,
         "appointments_week": week_total,
+        "pending_today": status_counts.get("Pendente", 0),
+        "confirmed_today": status_counts.get("Confirmado", 0),
+        "completed_today": status_counts.get("Concluído", 0),
+        "canceled_today": status_counts.get("Cancelado", 0),
+        "forecast_today_cents": forecast_today,
+        "forecast_today_label": price_label(forecast_today),
         "forecast_week_cents": forecast,
         "forecast_week_label": price_label(forecast),
         "next_appointment": row_dict(next_row),
@@ -1042,6 +1110,12 @@ def slots_for(date_value, service_id=None):
     ).fetchall()
     slots.extend([row["slot_time"] for row in extra])
 
+    blocked_slots = execute(
+        conn,
+        "SELECT slot_time FROM blocked_slots WHERE slot_date = ?", (date_value,)
+    ).fetchall()
+    blocked_values = {row["slot_time"] for row in blocked_slots}
+
     taken = execute(
         conn,
         """
@@ -1052,7 +1126,7 @@ def slots_for(date_value, service_id=None):
     ).fetchall()
     taken_values = {row["appointment_time"] for row in taken}
     conn.close()
-    return sorted(slot for slot in set(slots) if slot not in taken_values)
+    return sorted(slot for slot in set(slots) if slot not in taken_values and slot not in blocked_values)
 
 
 def appointment_payload(appointment_id):
@@ -1282,13 +1356,32 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.json({"gallery": [{**item, "featured": item["index"] == 1} for item in public_gallery()]})
             if parsed.path == "/api/admin/appointments":
                 date_value = query.get("date", [dt.date.today().isoformat()])[0]
+                status_filter = query.get("status", [""])[0]
+                service_filter = query.get("service_id", [""])[0]
+                search_filter = query.get("search", [""])[0].strip()
+                filters = ["a.appointment_date = ?"]
+                params = [date_value]
+                if status_filter:
+                    filters.append("a.status = ?")
+                    params.append(status_filter)
+                if service_filter:
+                    try:
+                        service_filter_id = int(service_filter)
+                    except ValueError:
+                        return self.bad("Serviço inválido.")
+                    filters.append("a.service_id = ?")
+                    params.append(service_filter_id)
+                if search_filter:
+                    like_value = f"%{search_filter}%"
+                    filters.append("(c.name LIKE ? OR c.phone LIKE ?)")
+                    params.extend([like_value, like_value])
                 rows = execute(
                     conn,
-                    """
+                    f"""
                     SELECT
-                        a.id, a.appointment_date, a.appointment_time, a.notes, a.status,
+                        a.id, a.service_id, a.client_id, a.appointment_date, a.appointment_time, a.notes, a.status,
                         c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
-                        s.name AS service_name,
+                        s.name AS service_name, s.price_cents, s.duration_minutes,
                         rr.id AS reschedule_request_id,
                         rr.requested_date,
                         rr.requested_time,
@@ -1303,12 +1396,15 @@ class Handler(SimpleHTTPRequestHandler):
                         ORDER BY created_at DESC
                         LIMIT 1
                     )
-                    WHERE a.appointment_date = ?
+                    WHERE {" AND ".join(filters)}
                     ORDER BY a.appointment_time
                     """,
-                    (date_value,),
+                    tuple(params),
                 ).fetchall()
-                return self.json({"appointments": rows_dict(rows)})
+                appointments = rows_dict(rows)
+                for appointment in appointments:
+                    appointment["price_label"] = price_label(appointment["price_cents"])
+                return self.json({"appointments": appointments})
             if parsed.path == "/api/admin/settings":
                 hours = rows_dict(
                     execute(
@@ -1322,7 +1418,10 @@ class Handler(SimpleHTTPRequestHandler):
                 extras = rows_dict(
                     execute(conn, "SELECT * FROM extra_slots ORDER BY slot_date, slot_time").fetchall()
                 )
-                return self.json({"hours": hours, "blocked_days": blocked, "extra_slots": extras})
+                blocked_slots = rows_dict(
+                    execute(conn, "SELECT * FROM blocked_slots ORDER BY slot_date, slot_time").fetchall()
+                )
+                return self.json({"hours": hours, "blocked_days": blocked, "blocked_slots": blocked_slots, "extra_slots": extras})
             if parsed.path == "/api/admin/config":
                 return self.json(
                     {
@@ -1627,6 +1726,31 @@ class Handler(SimpleHTTPRequestHandler):
             )
             conn.commit()
             conn.close()
+            admin_log(f"bloqueio de dia criado: {date_value}")
+            return self.json({"ok": True}, 201)
+
+        if parsed.path == "/api/admin/blocked-slots":
+            if not self.require_auth():
+                return
+            date_value = str(payload.get("date", "")).strip()
+            time_value = str(payload.get("time", "")).strip()
+            if not date_value or not time_value:
+                return self.bad("Informe data e horário.")
+            if not parse_date(date_value):
+                return self.bad("Informe uma data válida.")
+            conn = db()
+            execute(
+                conn,
+                """
+                INSERT INTO blocked_slots (slot_date, slot_time, reason)
+                VALUES (?, ?, ?)
+                ON CONFLICT(slot_date, slot_time) DO NOTHING
+                """,
+                (date_value, time_value, payload.get("reason", "").strip()),
+            )
+            conn.commit()
+            conn.close()
+            admin_log(f"bloqueio de horário criado: {date_value} {time_value}")
             return self.json({"ok": True}, 201)
 
         if parsed.path == "/api/admin/extra-slots":
@@ -1648,6 +1772,7 @@ class Handler(SimpleHTTPRequestHandler):
             )
             conn.commit()
             conn.close()
+            admin_log(f"horário extra criado: {date_value} {time_value}")
             return self.json({"ok": True}, 201)
 
         self.send_error(404)
@@ -1770,51 +1895,81 @@ class Handler(SimpleHTTPRequestHandler):
             appointment_id = int(parts[3])
             conn = db()
             try:
-                if "status" in payload:
-                    status = payload["status"]
-                    if status not in ["Pendente", "Confirmado", "Cancelado", "Concluído"]:
-                        return self.bad("Status inválido.")
-                    execute(
-                        conn,
-                        "UPDATE appointments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                        (status, appointment_id),
-                    )
-                if "date" in payload and "time" in payload:
-                    date_value = payload["date"]
-                    time_value = payload["time"]
-                    current = execute(
-                        conn,
-                        "SELECT service_id FROM appointments WHERE id = ?", (appointment_id,)
-                    ).fetchone()
-                    if not current:
-                        return self.bad("Agendamento não encontrado.", 404)
-                    available = slots_for(date_value, current["service_id"])
-                    original = execute(
-                        conn,
-                        "SELECT appointment_date, appointment_time FROM appointments WHERE id = ?",
-                        (appointment_id,),
-                    ).fetchone()
-                    same_slot = (
-                        original["appointment_date"] == date_value
-                        and original["appointment_time"] == time_value
-                    )
-                    if not same_slot and time_value not in available:
-                        return self.bad("Novo horário indisponível.", 409)
-                    execute(
-                        conn,
-                        """
-                        UPDATE appointments
-                        SET appointment_date = ?, appointment_time = ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE id = ?
-                        """,
-                        (date_value, time_value, appointment_id),
-                    )
+                current = execute(
+                    conn,
+                    """
+                    SELECT a.*, c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood
+                    FROM appointments a
+                    JOIN clients c ON c.id = a.client_id
+                    WHERE a.id = ?
+                    """,
+                    (appointment_id,),
+                ).fetchone()
+                if not current:
+                    return self.bad("Agendamento não encontrado.", 404)
+
+                status = str(payload.get("status", current["status"]))
+                if status not in ["Pendente", "Confirmado", "Cancelado", "Concluído"]:
+                    return self.bad("Status inválido.")
+
+                service_id = int(payload.get("service_id", current["service_id"]))
+                date_value = str(payload.get("date", current["appointment_date"])).strip()
+                time_value = str(payload.get("time", current["appointment_time"])).strip()
+                notes = str(payload.get("notes", current["notes"] or "")).strip()
+                client_name = str(payload.get("client_name", current["client_name"])).strip()
+                client_phone = phone_digits(payload.get("client_phone", current["client_phone"]))
+                client_neighborhood = str(payload.get("client_neighborhood", current["client_neighborhood"] or "")).strip()
+
+                if not client_name:
+                    return self.bad("Informe o nome da cliente.")
+                if not valid_phone(client_phone):
+                    return self.bad("Informe um WhatsApp válido com DDD.")
+                if not parse_date(date_value):
+                    return self.bad("Informe uma data válida.")
+                if not time_value:
+                    return self.bad("Informe um horário.")
+
+                service = execute(
+                    conn,
+                    "SELECT id FROM services WHERE id = ? AND active = 1",
+                    (service_id,),
+                ).fetchone()
+                if not service:
+                    return self.bad("Serviço inválido.")
+
+                same_slot = (
+                    int(current["service_id"]) == service_id
+                    and current["appointment_date"] == date_value
+                    and current["appointment_time"] == time_value
+                )
+                if not same_slot and status != "Cancelado" and time_value not in slots_for(date_value, service_id):
+                    return self.bad("Novo horário indisponível.", 409)
+
+                execute(
+                    conn,
+                    """
+                    UPDATE clients
+                    SET name = ?, phone = ?, neighborhood = ?
+                    WHERE id = ?
+                    """,
+                    (client_name, client_phone, client_neighborhood, current["client_id"]),
+                )
+                execute(
+                    conn,
+                    """
+                    UPDATE appointments
+                    SET service_id = ?, appointment_date = ?, appointment_time = ?, notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (service_id, date_value, time_value, notes, status, appointment_id),
+                )
                 conn.commit()
+                admin_log(f"agendamento atualizado: #{appointment_id} {status} {date_value} {time_value}")
                 return self.json({"appointment": appointment_payload(appointment_id)})
             except Exception as exc:
                 if exc.__class__.__name__ not in ["IntegrityError", "UniqueViolation"]:
                     raise
-                return self.bad("Horário já ocupado.", 409)
+                return self.bad("Conflito ao salvar: horário ocupado ou telefone já cadastrado.", 409)
             finally:
                 conn.close()
         self.send_error(404)
@@ -1828,10 +1983,24 @@ class Handler(SimpleHTTPRequestHandler):
             if len(parts) == 4 and parts[:3] == ["api", "admin", "blocked-days"]:
                 execute(conn, "DELETE FROM blocked_days WHERE id = ?", (int(parts[3]),))
                 conn.commit()
+                admin_log(f"bloqueio de dia removido: #{parts[3]}")
+                return self.json({"ok": True})
+            if len(parts) == 4 and parts[:3] == ["api", "admin", "blocked-slots"]:
+                execute(conn, "DELETE FROM blocked_slots WHERE id = ?", (int(parts[3]),))
+                conn.commit()
+                admin_log(f"bloqueio de horário removido: #{parts[3]}")
                 return self.json({"ok": True})
             if len(parts) == 4 and parts[:3] == ["api", "admin", "extra-slots"]:
                 execute(conn, "DELETE FROM extra_slots WHERE id = ?", (int(parts[3]),))
                 conn.commit()
+                admin_log(f"horário extra removido: #{parts[3]}")
+                return self.json({"ok": True})
+            if len(parts) == 4 and parts[:3] == ["api", "admin", "appointments"]:
+                appointment_id = int(parts[3])
+                execute(conn, "DELETE FROM reschedule_requests WHERE appointment_id = ?", (appointment_id,))
+                execute(conn, "DELETE FROM appointments WHERE id = ?", (appointment_id,))
+                conn.commit()
+                admin_log(f"agendamento excluído: #{appointment_id}")
                 return self.json({"ok": True})
             self.send_error(404)
         finally:
