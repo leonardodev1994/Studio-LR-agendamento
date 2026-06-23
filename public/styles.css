@@ -1227,12 +1227,137 @@ textarea:focus {
   margin-bottom: 28px;
 }
 
+.agenda-finance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.agenda-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 22px;
+}
+
+.calendar-panel,
+.pending-panel {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 18px;
+  box-shadow: 0 18px 45px rgba(31, 31, 31, 0.06);
+}
+
+.calendar-toolbar,
+.timeline-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.calendar-toolbar strong {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 24px;
+  text-transform: capitalize;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-weekdays {
+  margin: 18px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.calendar-day {
+  min-height: 74px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--white);
+  color: var(--ink);
+  display: grid;
+  align-content: space-between;
+  justify-items: start;
+  padding: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.calendar-day.empty {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.calendar-day:not(.empty):hover,
+.calendar-day.selected {
+  transform: translateY(-2px);
+  border-color: rgba(201, 168, 106, 0.62);
+  box-shadow: 0 16px 34px rgba(31, 31, 31, 0.09);
+}
+
+.calendar-day.today {
+  outline: 2px solid rgba(201, 168, 106, 0.32);
+}
+
+.calendar-day strong {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.calendar-day.density-low strong {
+  color: #2e6b47;
+  background: #e7f6ed;
+}
+
+.calendar-day.density-medium strong {
+  color: #80602c;
+  background: #fff6df;
+}
+
+.calendar-day.density-high strong {
+  color: #8a2f2f;
+  background: #faeaea;
+}
+
+.pending-list {
+  display: grid;
+  gap: 12px;
+  max-height: 620px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.timeline-heading {
+  margin: 10px 0 16px;
+}
+
 .appointment-card {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
   padding: 18px;
+}
+
+.appointment-card.compact {
+  grid-template-columns: 74px minmax(0, 1fr);
+  padding: 14px;
 }
 
 .appointment-card.has-reschedule {
@@ -1257,6 +1382,22 @@ textarea:focus {
 .appointment-main {
   display: grid;
   gap: 7px;
+}
+
+.client-link {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+.client-link:hover {
+  color: var(--gold);
 }
 
 .appointment-actions {
@@ -1294,6 +1435,10 @@ textarea:focus {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-filters.compact {
+  margin-top: 0;
 }
 
 .admin-filters label,
@@ -1372,6 +1517,64 @@ textarea:focus {
 .has-reschedule .appointment-status {
   color: var(--ink);
   background: var(--line);
+}
+
+.client-history-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(31, 31, 31, 0.42);
+}
+
+.client-history-panel {
+  width: min(720px, 100%);
+  max-height: 86vh;
+  overflow: auto;
+  border-radius: 24px;
+  background: var(--white);
+  padding: 26px;
+  box-shadow: 0 28px 80px rgba(31, 31, 31, 0.24);
+}
+
+.client-history-panel h2 {
+  margin-bottom: 16px;
+}
+
+.client-history-panel h3 {
+  margin-top: 18px;
+}
+
+.modal-close {
+  float: right;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--cream);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.history-grid span {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.history-grid strong {
+  color: var(--ink);
+  font-size: 15px;
 }
 
 .reschedule-form {
@@ -1657,8 +1860,13 @@ textarea:focus {
   .instagram-work-grid,
   .reels-grid,
   .admin-summary-grid,
-  .service-editor-grid {
+  .service-editor-grid,
+  .agenda-finance-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .agenda-workspace {
+    grid-template-columns: 1fr;
   }
 
   .instagram-profile-card {
@@ -1716,7 +1924,38 @@ textarea:focus {
   .admin-summary-grid,
   .service-editor-grid,
   .settings-items,
+  .agenda-finance-grid,
   .appointment-card {
+    grid-template-columns: 1fr;
+  }
+
+  .agenda-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-panel,
+  .pending-panel {
+    padding: 14px;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    gap: 5px;
+  }
+
+  .calendar-day {
+    min-height: 56px;
+    border-radius: 12px;
+    padding: 7px;
+    font-size: 13px;
+  }
+
+  .calendar-day strong {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+
+  .history-grid {
     grid-template-columns: 1fr;
   }
 

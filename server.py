@@ -356,6 +356,7 @@ class Database:
                 appointment_date TEXT NOT NULL,
                 appointment_time TEXT NOT NULL,
                 notes TEXT NOT NULL DEFAULT '',
+                source TEXT NOT NULL DEFAULT 'site',
                 status TEXT NOT NULL DEFAULT 'Pendente'
                     CHECK(status IN ('Pendente', 'Confirmado', 'Cancelado', 'Concluído')),
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -431,6 +432,7 @@ class Database:
             appointment_date TEXT NOT NULL,
             appointment_time TEXT NOT NULL,
             notes TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL DEFAULT 'site',
             status TEXT NOT NULL DEFAULT 'Pendente'
                 CHECK(status IN ('Pendente', 'Confirmado', 'Cancelado', 'Concluído')),
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -595,6 +597,12 @@ def run_migrations(conn):
         }
         if "neighborhood" not in client_columns:
             execute(conn, "ALTER TABLE clients ADD COLUMN neighborhood TEXT NOT NULL DEFAULT ''")
+        appointment_columns = {
+            row["name"]
+            for row in execute(conn, "PRAGMA table_info(appointments)").fetchall()
+        }
+        if "source" not in appointment_columns:
+            execute(conn, "ALTER TABLE appointments ADD COLUMN source TEXT NOT NULL DEFAULT 'site'")
         execute(
             conn,
             """
@@ -613,6 +621,7 @@ def run_migrations(conn):
         cursor.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS catalog_key TEXT")
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_services_catalog_key ON services(catalog_key)")
         cursor.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS neighborhood TEXT NOT NULL DEFAULT ''")
+        cursor.execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'site'")
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS blocked_slots (
@@ -857,9 +866,50 @@ def clients_summary():
     return rows_dict(rows)
 
 
+def finance_totals(conn, start_date, end_date):
+    row = execute(
+        conn,
+        """
+        SELECT
+            COALESCE(SUM(CASE WHEN a.status IN ('Pendente', 'Confirmado') THEN s.price_cents ELSE 0 END), 0) AS forecast,
+            COALESCE(SUM(CASE WHEN a.status = 'Concluído' THEN s.price_cents ELSE 0 END), 0) AS realized
+        FROM appointments a
+        JOIN services s ON s.id = a.service_id
+        WHERE a.appointment_date >= ? AND a.appointment_date <= ?
+        """,
+        (start_date, end_date),
+    ).fetchone()
+    return {
+        "forecast_cents": row["forecast"],
+        "forecast_label": price_label(row["forecast"]),
+        "realized_cents": row["realized"],
+        "realized_label": price_label(row["realized"]),
+    }
+
+
+def admin_finance_summary(date_value=None):
+    base_date = parse_date(date_value) if date_value else dt.date.today()
+    if not base_date:
+        base_date = dt.date.today()
+    week_start = base_date - dt.timedelta(days=base_date.weekday())
+    week_end = week_start + dt.timedelta(days=6)
+    conn = db()
+    day = finance_totals(conn, base_date.isoformat(), base_date.isoformat())
+    week = finance_totals(conn, week_start.isoformat(), week_end.isoformat())
+    conn.close()
+    return {
+        "date": base_date.isoformat(),
+        "week_start": week_start.isoformat(),
+        "week_end": week_end.isoformat(),
+        "day": day,
+        "week": week,
+    }
+
+
 def dashboard_summary():
-    today = dt.date.today().isoformat()
-    week_end = (dt.date.today() + dt.timedelta(days=7)).isoformat()
+    today_date = dt.date.today()
+    today = today_date.isoformat()
+    week_end = (today_date + dt.timedelta(days=7)).isoformat()
     conn = db()
     today_total = execute(
         conn,
@@ -888,26 +938,8 @@ def dashboard_summary():
         """,
         (today, today, dt.datetime.now().strftime("%H:%M")),
     ).fetchone()
-    forecast = execute(
-        conn,
-        """
-        SELECT COALESCE(SUM(s.price_cents), 0) AS total
-        FROM appointments a
-        JOIN services s ON s.id = a.service_id
-        WHERE a.appointment_date >= ? AND a.appointment_date <= ? AND a.status != 'Cancelado'
-        """,
-        (today, week_end),
-    ).fetchone()["total"]
-    forecast_today = execute(
-        conn,
-        """
-        SELECT COALESCE(SUM(s.price_cents), 0) AS total
-        FROM appointments a
-        JOIN services s ON s.id = a.service_id
-        WHERE a.appointment_date = ? AND a.status != 'Cancelado'
-        """,
-        (today,),
-    ).fetchone()["total"]
+    forecast = finance_totals(conn, today, week_end)
+    today_finance = finance_totals(conn, today, today)
     status_rows = execute(
         conn,
         """
@@ -927,11 +959,195 @@ def dashboard_summary():
         "confirmed_today": status_counts.get("Confirmado", 0),
         "completed_today": status_counts.get("Concluído", 0),
         "canceled_today": status_counts.get("Cancelado", 0),
-        "forecast_today_cents": forecast_today,
-        "forecast_today_label": price_label(forecast_today),
-        "forecast_week_cents": forecast,
-        "forecast_week_label": price_label(forecast),
+        "forecast_today_cents": today_finance["forecast_cents"],
+        "forecast_today_label": today_finance["forecast_label"],
+        "realized_today_cents": today_finance["realized_cents"],
+        "realized_today_label": today_finance["realized_label"],
+        "forecast_week_cents": forecast["forecast_cents"],
+        "forecast_week_label": forecast["forecast_label"],
+        "realized_week_cents": forecast["realized_cents"],
+        "realized_week_label": forecast["realized_label"],
         "next_appointment": row_dict(next_row),
+    }
+
+
+def appointment_rows(conn, date_value=None, status_filter="", service_filter="", search_filter="", pending_only=False):
+    filters = []
+    params = []
+    if date_value:
+        filters.append("a.appointment_date = ?")
+        params.append(date_value)
+    if pending_only:
+        filters.append("a.status = 'Pendente'")
+    elif status_filter:
+        filters.append("a.status = ?")
+        params.append(status_filter)
+    if service_filter:
+        try:
+            service_filter_id = int(service_filter)
+        except ValueError:
+            raise ValueError("Serviço inválido.")
+        filters.append("a.service_id = ?")
+        params.append(service_filter_id)
+    if search_filter:
+        like_value = f"%{search_filter}%"
+        filters.append("(c.name LIKE ? OR c.phone LIKE ?)")
+        params.extend([like_value, like_value])
+    where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
+    rows = execute(
+        conn,
+        f"""
+        SELECT
+            a.id, a.service_id, a.client_id, a.appointment_date, a.appointment_time,
+            a.notes, a.status, a.source, a.created_at,
+            c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
+            s.name AS service_name, s.price_cents, s.duration_minutes,
+            rr.id AS reschedule_request_id,
+            rr.requested_date,
+            rr.requested_time,
+            rr.message AS reschedule_message,
+            rr.status AS reschedule_status
+        FROM appointments a
+        JOIN clients c ON c.id = a.client_id
+        JOIN services s ON s.id = a.service_id
+        LEFT JOIN reschedule_requests rr ON rr.id = (
+            SELECT id FROM reschedule_requests
+            WHERE appointment_id = a.id
+            ORDER BY created_at DESC
+            LIMIT 1
+        )
+        {where_sql}
+        ORDER BY a.appointment_date, a.appointment_time
+        """,
+        tuple(params),
+    ).fetchall()
+    appointments = rows_dict(rows)
+    for appointment in appointments:
+        appointment["price_label"] = price_label(appointment["price_cents"])
+        appointment["source_label"] = "Site" if appointment.get("source") == "site" else "Admin"
+    return appointments
+
+
+def month_bounds(month_value):
+    try:
+        year, month = [int(part) for part in str(month_value).split("-", 1)]
+        start = dt.date(year, month, 1)
+    except (TypeError, ValueError):
+        start = dt.date.today().replace(day=1)
+    if start.month == 12:
+        next_month = dt.date(start.year + 1, 1, 1)
+    else:
+        next_month = dt.date(start.year, start.month + 1, 1)
+    end = next_month - dt.timedelta(days=1)
+    return start, end
+
+
+def calendar_summary(month_value):
+    start, end = month_bounds(month_value)
+    conn = db()
+    rows = execute(
+        conn,
+        """
+        SELECT
+            appointment_date,
+            COUNT(*) AS total,
+            SUM(CASE WHEN status = 'Pendente' THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN status = 'Confirmado' THEN 1 ELSE 0 END) AS confirmed,
+            SUM(CASE WHEN status = 'Concluído' THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN status = 'Cancelado' THEN 1 ELSE 0 END) AS canceled
+        FROM appointments
+        WHERE appointment_date >= ? AND appointment_date <= ?
+        GROUP BY appointment_date
+        ORDER BY appointment_date
+        """,
+        (start.isoformat(), end.isoformat()),
+    ).fetchall()
+    conn.close()
+    days = []
+    for row in rows:
+        total = row["total"]
+        if total >= 7:
+            density = "high"
+        elif total >= 4:
+            density = "medium"
+        else:
+            density = "low"
+        days.append({**dict(row), "density": density})
+    return {
+        "month": start.strftime("%Y-%m"),
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "days": days,
+    }
+
+
+def client_history(client_id):
+    conn = db()
+    client = execute(
+        conn,
+        "SELECT id, name, phone, neighborhood, created_at FROM clients WHERE id = ?",
+        (client_id,),
+    ).fetchone()
+    if not client:
+        conn.close()
+        return None
+    today = dt.date.today().isoformat()
+    now_time = dt.datetime.now().strftime("%H:%M")
+    totals = execute(
+        conn,
+        """
+        SELECT
+            COUNT(*) AS total_visits,
+            COALESCE(SUM(s.price_cents), 0) AS total_spent,
+            MAX(a.appointment_date) AS last_visit
+        FROM appointments a
+        JOIN services s ON s.id = a.service_id
+        WHERE a.client_id = ? AND a.status = 'Concluído'
+        """,
+        (client_id,),
+    ).fetchone()
+    next_row = execute(
+        conn,
+        """
+        SELECT a.appointment_date, a.appointment_time, a.status, s.name AS service_name
+        FROM appointments a
+        JOIN services s ON s.id = a.service_id
+        WHERE a.client_id = ?
+          AND a.status != 'Cancelado'
+          AND (a.appointment_date > ? OR (a.appointment_date = ? AND a.appointment_time >= ?))
+        ORDER BY a.appointment_date, a.appointment_time
+        LIMIT 1
+        """,
+        (client_id, today, today, now_time),
+    ).fetchone()
+    services = rows_dict(
+        execute(
+            conn,
+            """
+            SELECT s.name, COUNT(*) AS total
+            FROM appointments a
+            JOIN services s ON s.id = a.service_id
+            WHERE a.client_id = ? AND a.status = 'Concluído'
+            GROUP BY s.name
+            ORDER BY total DESC, s.name
+            """,
+            (client_id,),
+        ).fetchall()
+    )
+    appointments = appointment_rows(conn, None, "", "", "", False)
+    appointments = [item for item in appointments if int(item["client_id"]) == int(client_id)]
+    conn.close()
+    visits = totals["total_visits"]
+    return {
+        "client": dict(client),
+        "total_visits": visits,
+        "last_visit": totals["last_visit"],
+        "next_appointment": row_dict(next_row),
+        "total_spent_cents": totals["total_spent"],
+        "total_spent_label": price_label(totals["total_spent"]),
+        "services": services,
+        "recurring": visits >= 2,
+        "appointments": appointments,
     }
 
 
@@ -1333,6 +1549,14 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             if parsed.path == "/api/admin/dashboard":
                 return self.json({"dashboard": dashboard_summary()})
+            if parsed.path == "/api/admin/calendar":
+                month_value = query.get("month", [dt.date.today().strftime("%Y-%m")])[0]
+                return self.json({"calendar": calendar_summary(month_value)})
+            if parsed.path == "/api/admin/pending-appointments":
+                return self.json({"appointments": appointment_rows(conn, None, "", "", "", True)})
+            if parsed.path == "/api/admin/finance-summary":
+                date_value = query.get("date", [dt.date.today().isoformat()])[0]
+                return self.json({"finance": admin_finance_summary(date_value)})
             if parsed.path == "/api/admin/services":
                 return self.json({"services": admin_services()})
             if parsed.path == "/api/admin/catalog":
@@ -1340,11 +1564,18 @@ class Handler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/admin/clients":
                 return self.json({"clients": clients_summary()})
             if parsed.path == "/api/admin/finance":
+                finance = admin_finance_summary()
                 return self.json(
                     {
                         "finance": {
-                            "daily_revenue_cents": 0,
-                            "weekly_revenue_cents": dashboard_summary()["forecast_week_cents"],
+                            "daily_forecast_cents": finance["day"]["forecast_cents"],
+                            "daily_forecast_label": finance["day"]["forecast_label"],
+                            "daily_realized_cents": finance["day"]["realized_cents"],
+                            "daily_realized_label": finance["day"]["realized_label"],
+                            "weekly_forecast_cents": finance["week"]["forecast_cents"],
+                            "weekly_forecast_label": finance["week"]["forecast_label"],
+                            "weekly_realized_cents": finance["week"]["realized_cents"],
+                            "weekly_realized_label": finance["week"]["realized_label"],
                             "monthly_revenue_cents": 0,
                             "expenses_cents": 0,
                             "estimated_profit_cents": 0,
@@ -1359,51 +1590,10 @@ class Handler(SimpleHTTPRequestHandler):
                 status_filter = query.get("status", [""])[0]
                 service_filter = query.get("service_id", [""])[0]
                 search_filter = query.get("search", [""])[0].strip()
-                filters = ["a.appointment_date = ?"]
-                params = [date_value]
-                if status_filter:
-                    filters.append("a.status = ?")
-                    params.append(status_filter)
-                if service_filter:
-                    try:
-                        service_filter_id = int(service_filter)
-                    except ValueError:
-                        return self.bad("Serviço inválido.")
-                    filters.append("a.service_id = ?")
-                    params.append(service_filter_id)
-                if search_filter:
-                    like_value = f"%{search_filter}%"
-                    filters.append("(c.name LIKE ? OR c.phone LIKE ?)")
-                    params.extend([like_value, like_value])
-                rows = execute(
-                    conn,
-                    f"""
-                    SELECT
-                        a.id, a.service_id, a.client_id, a.appointment_date, a.appointment_time, a.notes, a.status,
-                        c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
-                        s.name AS service_name, s.price_cents, s.duration_minutes,
-                        rr.id AS reschedule_request_id,
-                        rr.requested_date,
-                        rr.requested_time,
-                        rr.message AS reschedule_message,
-                        rr.status AS reschedule_status
-                    FROM appointments a
-                    JOIN clients c ON c.id = a.client_id
-                    JOIN services s ON s.id = a.service_id
-                    LEFT JOIN reschedule_requests rr ON rr.id = (
-                        SELECT id FROM reschedule_requests
-                        WHERE appointment_id = a.id
-                        ORDER BY created_at DESC
-                        LIMIT 1
-                    )
-                    WHERE {" AND ".join(filters)}
-                    ORDER BY a.appointment_time
-                    """,
-                    tuple(params),
-                ).fetchall()
-                appointments = rows_dict(rows)
-                for appointment in appointments:
-                    appointment["price_label"] = price_label(appointment["price_cents"])
+                try:
+                    appointments = appointment_rows(conn, date_value, status_filter, service_filter, search_filter)
+                except ValueError as exc:
+                    return self.bad(str(exc))
                 return self.json({"appointments": appointments})
             if parsed.path == "/api/admin/settings":
                 hours = rows_dict(
@@ -1433,6 +1623,15 @@ class Handler(SimpleHTTPRequestHandler):
                         }
                     }
                 )
+            parts = parsed.path.strip("/").split("/")
+            if len(parts) == 4 and parts[:3] == ["api", "admin", "clients"]:
+                try:
+                    history = client_history(int(parts[3]))
+                except ValueError:
+                    return self.bad("Cliente inválida.")
+                if not history:
+                    return self.bad("Cliente não encontrada.", 404)
+                return self.json({"history": history})
             self.send_error(404)
         finally:
             conn.close()
