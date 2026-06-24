@@ -77,9 +77,11 @@ python3 server.py
 
 Em desenvolvimento, deixe `DATABASE_URL` vazio. O sistema cria e usa `studio_lr.sqlite3`.
 
+Em producao, configure sempre `DATABASE_URL` com Supabase/PostgreSQL. O Render usa disco temporario; se o app rodar com SQLite em producao, clientes e agendamentos podem sumir em deploys/restarts. Com `APP_ENV=production`, o servidor agora exige `DATABASE_URL` para proteger esses dados.
+
 ## Banco de dados
 
-Quando `DATABASE_URL` esta vazio, o servidor usa SQLite local.
+Quando `DATABASE_URL` esta vazio, o servidor usa SQLite local somente para desenvolvimento.
 
 Quando `DATABASE_URL` esta preenchido com uma URL `postgres://` ou `postgresql://`, o servidor usa PostgreSQL/Supabase.
 

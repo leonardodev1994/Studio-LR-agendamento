@@ -28,7 +28,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 2500,
         "duration_minutes": 45,
         "description": "Cuidado essencial para unhas naturais, com acabamento limpo e delicado.",
-        "icon": "◇",
+        "image": "/assets/servicos/manicure-simples.jpg",
     },
     {
         "key": "pedicure-simples",
@@ -37,7 +37,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 2500,
         "duration_minutes": 45,
         "description": "Cuidado dos pés com acabamento confortável, bonito e bem feito.",
-        "icon": "◇",
+        "image": "/assets/servicos/pedicure-simples.jpg",
     },
     {
         "key": "manicure-pedicure",
@@ -46,7 +46,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 4500,
         "duration_minutes": 90,
         "description": "Combo completo para mãos e pés com praticidade e cuidado.",
-        "icon": "◇",
+        "image": "/assets/servicos/manicure-pedicure.jpg",
     },
     {
         "key": "francesinha",
@@ -55,7 +55,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 3000,
         "duration_minutes": 60,
         "description": "Acabamento clássico e elegante para unhas naturais.",
-        "icon": "◇",
+        "image": "/assets/servicos/francesinha.jpg",
     },
     {
         "key": "esmaltacao-simples-mao",
@@ -64,7 +64,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 1500,
         "duration_minutes": 30,
         "description": "Esmaltação prática para renovar o visual das mãos.",
-        "icon": "◇",
+        "image": "/assets/servicos/esmaltacao-simples-mao.jpg",
     },
     {
         "key": "esmaltacao-gel-mao",
@@ -73,7 +73,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 3000,
         "duration_minutes": 45,
         "description": "Brilho intenso e maior durabilidade para as unhas das mãos.",
-        "icon": "◇",
+        "image": "/assets/servicos/esmaltacao-gel-mao.jpg",
     },
     {
         "key": "esmaltacao-gel-pe",
@@ -82,7 +82,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 4000,
         "duration_minutes": 45,
         "description": "Acabamento em gel nos pés com brilho e durabilidade.",
-        "icon": "◇",
+        "image": "/assets/servicos/esmaltacao-gel-pe.jpg",
     },
     {
         "key": "gel-tips",
@@ -109,7 +109,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 6000,
         "duration_minutes": 90,
         "description": "Aplicação prática com acabamento bonito e confortável.",
-        "icon": "✦",
+        "image": "/assets/servicos/postica-soft-gel.jpg",
     },
     {
         "key": "postica",
@@ -118,7 +118,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 3500,
         "duration_minutes": 60,
         "description": "Opção rápida para unhas alongadas com visual delicado.",
-        "icon": "✦",
+        "image": "/assets/servicos/postica.jpg",
     },
     {
         "key": "gel-tips-extra-longa",
@@ -127,7 +127,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 12000,
         "duration_minutes": 150,
         "description": "Alongamento extra longo com estrutura reforçada e acabamento premium.",
-        "image": "/assets/servicos/gel-tips.jpg",
+        "image": "/assets/servicos/gel-tips-extra-longa.jpg",
     },
     {
         "key": "manutencao-gel-tips",
@@ -137,7 +137,7 @@ CATALOG_DEFAULTS = [
         "duration_minutes": 90,
         "description": "Manutenção para clientes que já fizeram Gel na Tips no Studio LR.",
         "existing_client_only": True,
-        "icon": "✦",
+        "image": "/assets/servicos/manutencao-gel-tips.jpg",
     },
     {
         "key": "manutencao-fibra",
@@ -147,7 +147,7 @@ CATALOG_DEFAULTS = [
         "duration_minutes": 120,
         "description": "Manutenção para clientes que já fizeram Fibra de Vidro no Studio LR.",
         "existing_client_only": True,
-        "icon": "✦",
+        "image": "/assets/servicos/manutencao-fibra.jpg",
     },
     {
         "key": "nail-art-elaborada",
@@ -176,7 +176,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 4500,
         "duration_minutes": 60,
         "description": "Proteção para unhas naturais com acabamento delicado e resistente.",
-        "icon": "◇",
+        "image": "/assets/servicos/blindagem.jpg",
     },
     {
         "key": "reconstrucao-unha-pe",
@@ -185,7 +185,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 6500,
         "duration_minutes": 60,
         "description": "Reconstrução cuidadosa para recuperar a estrutura da unha do pé.",
-        "icon": "◇",
+        "image": "/assets/servicos/reconstrucao-unha-pe.png",
     },
     {
         "key": "spa-pes",
@@ -194,7 +194,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 6000,
         "duration_minutes": 60,
         "description": "Tratamento relaxante para pés mais macios, cuidados e bonitos.",
-        "icon": "✦",
+        "image": "/assets/servicos/spa-pes.png",
     },
     {
         "key": "remocao",
@@ -203,7 +203,7 @@ CATALOG_DEFAULTS = [
         "price_cents": 3000,
         "duration_minutes": 45,
         "description": "Remoção técnica e cuidadosa para preservar a saúde das unhas.",
-        "icon": "◇",
+        "image": "/assets/servicos/remocao.png",
     },
 ]
 PUBLIC_REVIEWS = [
@@ -284,6 +284,7 @@ def validate_config():
         "LETICIA_WHATSAPP": WHATSAPP_NUMBER,
         "INSTAGRAM_URL": INSTAGRAM_URL,
         "SECRET_KEY": SECRET_KEY,
+        "DATABASE_URL": DATABASE_URL,
     }
     missing = [key for key, value in required.items() if not value]
     if missing:
