@@ -294,6 +294,12 @@ def validate_config():
 class Database:
     def __init__(self, url=""):
         self.url = url
+        # Em produção, FORÇA uso de PostgreSQL
+        if not url and os.environ.get("APP_ENV") == "production":
+            raise RuntimeError(
+                "DATABASE_URL não configurada em produção. "
+                "Configure o Supabase PostgreSQL para persistência de dados."
+            )
         self.kind = "postgres" if url.startswith(("postgres://", "postgresql://")) else "sqlite"
         self.driver = None
         if self.kind == "postgres":
@@ -323,8 +329,14 @@ class Database:
             conn.execute("PRAGMA foreign_keys = ON")
             return conn
         if self.driver == "psycopg":
-            return self.module.connect(self.url, row_factory=self.module.rows.dict_row)
-        return self.module.connect(self.url, cursor_factory=self.extras.RealDictCursor)
+            conn = self.module.connect(self.url, row_factory=self.module.rows.dict_row)
+            # Configura timezone para o servidor
+            conn.execute("SET session_replication_role = replica")
+            return conn
+        conn = self.module.connect(self.url, cursor_factory=self.extras.RealDictCursor)
+        # Configura timezone para o servidor
+        conn.cursor().execute("SET session_replication_role = replica")
+        return conn
 
     def sql(self, statement):
         if self.kind == "postgres":
@@ -1318,6 +1330,19 @@ def is_past_date(value):
     return parsed is not None and parsed < dt.date.today()
 
 
+def normalize_date(date_string):
+    """Normaliza data de string ISO para formato consistente YYYY-MM-DD.
+    Garante que datas são sempre interpretadas em timezone local do servidor."""
+    try:
+        parsed = dt.datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        return parsed.date().isoformat()
+    except (ValueError, AttributeError):
+        try:
+            return dt.date.fromisoformat(date_string).isoformat()
+        except (ValueError, TypeError):
+            return None
+
+
 def sign(value):
     digest = hmac.new(SECRET_KEY.encode(), value.encode(), hashlib.sha256).hexdigest()
     return f"{value}.{digest}"
@@ -1738,9 +1763,12 @@ class Handler(SimpleHTTPRequestHandler):
             client_name = str(payload["name"]).strip()
             phone = phone_digits(payload["phone"])
             neighborhood = str(payload.get("neighborhood", "")).strip()
-            date_value = str(payload["date"]).strip()
+            date_value = normalize_date(str(payload["date"]).strip())
             time_value = str(payload["time"]).strip()
             notes = str(payload.get("notes", "")).strip()
+            
+            if not date_value:
+                return self.bad("Informe uma data válida.")
 
             if not client_name:
                 return self.bad("Informe seu nome.")
@@ -1834,7 +1862,7 @@ class Handler(SimpleHTTPRequestHandler):
             except (TypeError, ValueError):
                 return self.bad("Agendamento inválido.")
             phone = phone_digits(payload.get("phone", ""))
-            requested_date = str(payload.get("requested_date", "")).strip()
+            requested_date = normalize_date(str(payload.get("requested_date", "")).strip()) if payload.get("requested_date", "").strip() else ""
             requested_time = str(payload.get("requested_time", "")).strip()
             message = str(payload.get("message", "")).strip()
 
@@ -1984,9 +2012,9 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/admin/blocked-days":
             if not self.require_auth():
                 return
-            date_value = payload.get("date", "")
+            date_value = normalize_date(payload.get("date", ""))
             if not date_value:
-                return self.bad("Informe a data.")
+                return self.bad("Informe uma data válida.")
             conn = db()
             execute(
                 conn,
@@ -2005,10 +2033,10 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/admin/blocked-slots":
             if not self.require_auth():
                 return
-            date_value = str(payload.get("date", "")).strip()
+            date_value = normalize_date(str(payload.get("date", "")).strip())
             time_value = str(payload.get("time", "")).strip()
             if not date_value or not time_value:
-                return self.bad("Informe data e horário.")
+                return self.bad("Informe data e horário válidos.")
             if not parse_date(date_value):
                 return self.bad("Informe uma data válida.")
             conn = db()
@@ -2029,7 +2057,7 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/admin/extra-slots":
             if not self.require_auth():
                 return
-            date_value = payload.get("date", "")
+            date_value = normalize_date(payload.get("date", ""))
             time_value = payload.get("time", "")
             if not date_value or not time_value:
                 return self.bad("Informe data e horário.")
@@ -2230,7 +2258,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.bad("Status inválido.")
 
                 service_id = int(payload.get("service_id", current["service_id"]))
-                date_value = str(payload.get("date", current["appointment_date"])).strip()
+                date_value = normalize_date(str(payload.get("date", current["appointment_date"])).strip())
                 time_value = str(payload.get("time", current["appointment_time"])).strip()
                 notes = str(payload.get("notes", current["notes"] or "")).strip()
                 client_name = str(payload.get("client_name", current["client_name"])).strip()
@@ -2241,7 +2269,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.bad("Informe o nome da cliente.")
                 if not valid_phone(client_phone):
                     return self.bad("Informe um WhatsApp válido com DDD.")
-                if not parse_date(date_value):
+                if not date_value or not parse_date(date_value):
                     return self.bad("Informe uma data válida.")
                 if not time_value:
                     return self.bad("Informe um horário.")
@@ -2327,6 +2355,10 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     validate_config()
     init_db()
+    print(f"🗄️  Database: {database.kind.upper()}")
+    if database.kind == "postgres":
+        print(f"📍 Supabase: {database.url.split('@')[1] if '@' in database.url else 'Conectado'}")
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Studio LR rodando em http://{HOST}:{PORT}")
+    print(f"🎨 Studio LR rodando em http://{HOST}:{PORT}")
+    print(f"🔒 Ambiente: {APP_ENV}")
     server.serve_forever()

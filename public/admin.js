@@ -42,7 +42,11 @@ let clientsCache = [];
 let currentCalendarMonth = todayIso().slice(0, 7);
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 async function api(path, options = {}) {
@@ -84,13 +88,18 @@ function monthLabel(value) {
 function addDays(value, days) {
   const date = new Date(`${value}T12:00:00`);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function addMonths(value, months) {
   const date = new Date(`${value}-01T12:00:00`);
   date.setMonth(date.getMonth() + months);
-  return date.toISOString().slice(0, 7);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 function statusClass(status = "") {
