@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Letícia Rodrigues Nail Designer | Studio LR</title>
-    <meta name="description" content="Agendamento online do Studio LR, com serviços de unhas em gel, manutenção, banho de gel e blindagem.">
+    <title>Studio LR | Nail Design & Body Piercing</title>
+    <meta name="description" content="Agendamento online do Studio LR para Nail Design e Body Piercing, com atendimento personalizado e avaliação de anatomia.">
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/styles.css">
   </head>
@@ -14,7 +14,7 @@
         <img class="brand-logo" src="/assets/optimized/logo/logo-oficial.png" alt="Studio LR" decoding="async" fetchpriority="high">
         <span>
           <strong>Studio LR</strong>
-          <small>Nail Designer</small>
+          <small>Nail Design & Body Piercing</small>
         </span>
       </a>
       <nav>
@@ -36,9 +36,9 @@
           <div class="official-logo hero-logo" aria-label="Studio LR">
             <img src="/assets/optimized/logo/logo-oficial.png" alt="Studio LR" decoding="async" fetchpriority="high">
           </div>
-          <p class="eyebrow">Letícia Rodrigues Nail Designer</p>
-          <h1>Beleza, cuidado e autoestima em cada detalhe.</h1>
-          <p class="hero-text">Agende seu horário de forma simples e escolha o serviço ideal para unhas elegantes, bem cuidadas e com acabamento impecável.</p>
+          <p id="heroEyebrow" class="eyebrow">Studio LR · Nail Design</p>
+          <h1 id="heroTitle">Beleza, cuidado e autoestima em cada detalhe.</h1>
+          <p id="heroText" class="hero-text">Agende seu horário e escolha o cuidado ideal para unhas elegantes e acabamento impecável.</p>
           <div class="hero-actions">
             <a class="button primary" href="#agendar">Agendar horário</a>
             <a class="button secondary whatsapp-link" href="#" target="_blank" rel="noreferrer">Falar no WhatsApp</a>
@@ -49,10 +49,29 @@
 
       <section id="servicos" class="section">
         <div class="section-heading">
-          <p class="eyebrow">Serviços</p>
-          <h2>Escolha seu cuidado</h2>
+          <div>
+            <p class="eyebrow">Serviços</p>
+            <h2 id="servicesTitle">Escolha seu cuidado</h2>
+          </div>
+          <div class="service-segment-switch" aria-label="Escolha a área de atendimento">
+            <button class="active" type="button" data-service-segment="nails">Unhas</button>
+            <button type="button" data-service-segment="piercing">Body Piercing</button>
+          </div>
         </div>
         <div id="servicesGrid" class="services-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="section piercing-guidance" data-segment-section="piercing" hidden>
+        <div class="section-heading centered">
+          <p class="eyebrow">Perfuração responsável</p>
+          <h2>A anatomia vem antes da escolha</h2>
+          <p class="section-subtitle">Algumas perfurações não são indicadas para todas as pessoas. A posição, a joia inicial e a disponibilidade do procedimento são confirmadas em avaliação.</p>
+        </div>
+        <div class="steps-grid">
+          <article class="step-card"><span class="line-icon">01</span><h3>Avaliação</h3><p>Análise da anatomia, do posicionamento e da joia adequada antes do procedimento.</p></article>
+          <article class="step-card"><span class="line-icon">02</span><h3>Procedimento</h3><p>Atendimento individual com materiais apropriados e orientação clara.</p></article>
+          <article class="step-card"><span class="line-icon">03</span><h3>Pós-atendimento</h3><p>Cuidados explicados de forma simples e acompanhamento em caso de dúvidas.</p></article>
+        </div>
       </section>
 
       <section class="section how-section">
