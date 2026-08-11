@@ -2,6 +2,7 @@ const state = {
   services: [],
   catalog: [],
   selectedServiceId: null,
+  serviceSegment: "nails",
   config: {
     whatsapp_number: "",
     instagram_url: "https://www.instagram.com/leticiar_naildesigner",
@@ -32,6 +33,11 @@ const instagramGallery = document.querySelector("#instagramGallery");
 const lightbox = document.querySelector("#lightbox");
 const lightboxImage = document.querySelector("#lightboxImage");
 const lightboxCaption = document.querySelector("#lightboxCaption");
+const serviceSegmentButtons = document.querySelectorAll("[data-service-segment]");
+const servicesTitle = document.querySelector("#servicesTitle");
+const heroEyebrow = document.querySelector("#heroEyebrow");
+const heroTitle = document.querySelector("#heroTitle");
+const heroText = document.querySelector("#heroText");
 const publicServices = [
   {
     key: "manicure-simples",
@@ -194,10 +200,12 @@ function renderServices() {
   const normalizedCatalog = catalog.map((service) => ({
     ...service,
     key: service.service_id || service.serviceId || `custom:${service.key || service.name}`,
+    segment: service.segment || "nails",
   }));
-  const bookableCatalog = normalizedCatalog.filter((service) => service.bookable !== false);
+  const visibleCatalog = normalizedCatalog.filter((service) => service.segment === state.serviceSegment);
+  const bookableCatalog = visibleCatalog.filter((service) => service.bookable !== false);
 
-  servicesGrid.innerHTML = normalizedCatalog
+  servicesGrid.innerHTML = visibleCatalog
     .map((service, index) => {
       return `
       <article class="service-card ${service.image ? "with-image" : "without-image"}">
@@ -254,6 +262,25 @@ function renderServices() {
 
   if (bookableCatalog[0]) selectService(bookableCatalog[0].key);
 }
+
+function setServiceSegment(segment) {
+  state.serviceSegment = segment === "piercing" ? "piercing" : "nails";
+  document.body.dataset.serviceSegment = state.serviceSegment;
+  serviceSegmentButtons.forEach((button) => button.classList.toggle("active", button.dataset.serviceSegment === state.serviceSegment));
+  document.querySelectorAll("[data-segment-section]").forEach((section) => {
+    section.hidden = section.dataset.segmentSection !== state.serviceSegment;
+  });
+  const piercingMode = state.serviceSegment === "piercing";
+  servicesTitle.textContent = piercingMode ? "Escolha sua perfuração" : "Escolha seu cuidado";
+  heroEyebrow.textContent = piercingMode ? "Studio LR · Body Piercing" : "Studio LR · Nail Design";
+  heroTitle.textContent = piercingMode ? "Expressão, identidade e cuidado em cada detalhe." : "Beleza, cuidado e autoestima em cada detalhe.";
+  heroText.textContent = piercingMode
+    ? "Conheça as possibilidades de perfuração e agende uma avaliação personalizada de anatomia e posicionamento."
+    : "Agende seu horário e escolha o cuidado ideal para unhas elegantes e acabamento impecável.";
+  renderServices();
+}
+
+serviceSegmentButtons.forEach((button) => button.addEventListener("click", () => setServiceSegment(button.dataset.serviceSegment)));
 
 function renderGalleries() {
   if (workGallery) {
