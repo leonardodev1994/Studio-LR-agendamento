@@ -175,9 +175,10 @@ async function deleteAppointment(id) {
 }
 
 function appointmentSummary(item) {
+  const displayStatus = String(item.service_key || "").startsWith("piercing-") && item.status === "Pendente" ? "Aguardando disponibilidade" : item.status;
   return `
     <div class="ops-appointment-main">
-      <span class="ops-status ${statusClass(item.status)}">${item.reschedule_request_id ? "Reagendamento solicitado" : escapeHtml(item.status)}</span>
+      <span class="ops-status ${statusClass(item.status)}">${item.reschedule_request_id ? "Reagendamento solicitado" : escapeHtml(displayStatus)}</span>
       <button class="ops-client-link" type="button" data-client-history="${item.client_id}">${escapeHtml(item.client_name)}</button>
       <p>${escapeHtml(item.client_phone)}${item.client_neighborhood ? ` · ${escapeHtml(item.client_neighborhood)}` : ""}</p>
       <p>${escapeHtml(item.service_name)} · ${escapeHtml(item.price_label || moneyLabel(item.price_cents))}${Number(item.price_cents) !== Number(item.catalog_price_cents) ? ` <small>valor ajustado</small>` : ""} · ${escapeHtml(item.duration_minutes)} min</p>
@@ -188,13 +189,14 @@ function appointmentSummary(item) {
 }
 
 function appointmentActions(item) {
+  const isPiercing = String(item.service_key || "").startsWith("piercing-");
   return `
     <div class="ops-row-actions" data-actions-for="${item.id}" data-appointment-price="${(Number(item.price_cents || 0) / 100).toFixed(2).replace(".", ",")}">
-      <button class="ops-button success" type="button" data-status="Confirmado">Confirmar</button>
+      <button class="ops-button success" type="button" data-status="Confirmado">${isPiercing ? "Disponível / Confirmar" : "Confirmar"}</button>
       <button class="ops-button info" type="button" data-status="Concluído">Concluir</button>
       <button class="ops-button warn" type="button" data-status="Pendente">Pendente</button>
-      <button class="ops-button danger" type="button" data-status="Cancelado">Cancelar</button>
-      <a class="ops-button ghost" target="_blank" rel="noreferrer" href="${whatsappClientUrl(item.client_phone, whatsappMessage("confirm", item))}">WhatsApp</a>
+      <button class="ops-button danger" type="button" data-status="Cancelado">${isPiercing ? "Indisponível" : "Cancelar"}</button>
+      <a class="ops-button ghost" target="_blank" rel="noreferrer" href="${whatsappClientUrl(item.client_phone, whatsappMessage(item.status === "Cancelado" ? "cancel" : "confirm", item))}">WhatsApp</a>
     </div>
   `;
 }
@@ -304,7 +306,7 @@ function renderAppointmentTable(container, items, emptyMessage = "Nenhum registr
             <td><button class="ops-table-link" type="button" data-client-history="${item.client_id}">${escapeHtml(item.client_name)}</button><small>${escapeHtml(item.client_phone)}</small></td>
             <td>${escapeHtml(item.service_name)}<small>${escapeHtml(item.duration_minutes)} min</small></td>
             <td>${escapeHtml(item.price_label || moneyLabel(item.price_cents))}</td>
-            <td><span class="ops-status ${statusClass(item.status)}">${escapeHtml(item.status)}</span></td>
+            <td><span class="ops-status ${statusClass(item.status)}">${escapeHtml(String(item.service_key || "").startsWith("piercing-") && item.status === "Pendente" ? "Aguardando disponibilidade" : item.status)}</span></td>
             <td>${appointmentActions(item)}</td>
           </tr>
         `).join("")}
