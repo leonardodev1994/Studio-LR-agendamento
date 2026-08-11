@@ -828,8 +828,9 @@ def sync_catalog_services(conn):
             WHEN 'piercing-microdermal' THEN 18000
             ELSE 5000
         END
-        WHERE catalog_key LIKE 'piercing-%' AND price_cents = 0
+        WHERE catalog_key LIKE ? AND price_cents = 0
         """,
+        ("piercing-%",),
     )
 
     if force_update:
