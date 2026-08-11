@@ -3,6 +3,7 @@ const state = {
   catalog: [],
   selectedServiceId: null,
   serviceSegment: "nails",
+  consentConfig: null,
   config: {
     whatsapp_number: "",
     instagram_url: "https://www.instagram.com/leticiar_naildesigner",
@@ -38,6 +39,20 @@ const servicesTitle = document.querySelector("#servicesTitle");
 const heroEyebrow = document.querySelector("#heroEyebrow");
 const heroTitle = document.querySelector("#heroTitle");
 const heroText = document.querySelector("#heroText");
+const piercingBirthField = document.querySelector("#piercingBirthField");
+const bookingBirthDate = document.querySelector("#bookingBirthDate");
+const ageMessage = document.querySelector("#ageMessage");
+const guardianCard = document.querySelector("#guardianCard");
+const guardianAuthorizationLabel = document.querySelector("#guardianAuthorizationLabel");
+const minorDocumentNote = document.querySelector("#minorDocumentNote");
+const adultOnlyMessage = document.querySelector("#adultOnlyMessage");
+const consentFieldset = document.querySelector("#consentFieldset");
+const consentModal = document.querySelector("#consentModal");
+const consentModalPanel = consentModal?.querySelector(".consent-modal-panel");
+const consentTermContent = document.querySelector("#consentTermContent");
+const consentTermVersion = document.querySelector("#consentTermVersion");
+const openConsentModalButton = document.querySelector("#openConsentModal");
+const closeConsentModalButton = document.querySelector("#closeConsentModal");
 const publicServices = [
   {
     key: "manicure-simples",
@@ -137,6 +152,7 @@ let currentLightboxIndex = 0;
 let bookingSubmitting = false;
 let bookingCompleted = false;
 let galleriesLoaded = false;
+let lastConsentFocus = null;
 
 function todayIso() {
   const today = new Date();
@@ -164,10 +180,94 @@ function validatePhone(value) {
   return digits.length >= 10 && digits.length <= 13;
 }
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function selectedService() {
+  return (state.catalog.length ? state.catalog : publicServices).find((item) => {
+    const itemKey = item.service_id || item.serviceId || `custom:${item.key || item.name}`;
+    return String(itemKey) === String(state.selectedServiceId);
+  });
+}
+
+function isPiercingSelection() {
+  return selectedService()?.segment === "piercing";
+}
+
+function calculateAge(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return null;
+  const birth = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(birth.getTime()) || birth > new Date()) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age -= 1;
+  return age >= 0 && age <= 125 ? age : null;
+}
+
+function piercingFlowState() {
+  const service = selectedService();
+  const age = calculateAge(bookingBirthDate?.value);
+  const minor = age !== null && age < 18;
+  const minimumAge = Number(state.consentConfig?.minimum_age || 0);
+  const belowMinimum = age !== null && age < minimumAge;
+  const blocked = age !== null && age < 18 && service?.minor_policy === "adult_only";
+  const guardianRequired = minor && service?.minor_policy !== "minors_allowed";
+  return { age, minor, blocked: blocked || belowMinimum, guardianRequired, belowMinimum, minimumAge };
+}
+
+function updateSubmitAvailability() {
+  if (!bookingSubmitButton || bookingSubmitting || bookingCompleted) return;
+  if (!isPiercingSelection()) {
+    bookingSubmitButton.disabled = false;
+    return;
+  }
+  const flow = piercingFlowState();
+  const checks = Array.from(consentFieldset.querySelectorAll("input[type='checkbox']"))
+    .filter((input) => !input.closest(".hidden"));
+  bookingSubmitButton.disabled = flow.age === null || flow.blocked || checks.some((input) => !input.checked);
+}
+
+function updatePiercingFlow() {
+  const piercing = isPiercingSelection();
+  piercingBirthField?.classList.toggle("hidden", !piercing);
+  consentFieldset?.classList.toggle("hidden", !piercing);
+  if (bookingBirthDate) bookingBirthDate.required = piercing;
+  const flow = piercingFlowState();
+  if (ageMessage) ageMessage.textContent = piercing && flow.age !== null
+    ? `${flow.age} anos · ${flow.minor ? "fluxo para menor de idade" : "consentimento do próprio cliente"}`
+    : piercing ? "A idade será calculada automaticamente." : "";
+  guardianCard?.classList.toggle("hidden", !piercing || !flow.guardianRequired || flow.blocked);
+  guardianAuthorizationLabel?.classList.toggle("hidden", !piercing || !flow.guardianRequired || flow.blocked);
+  minorDocumentNote?.classList.toggle("hidden", !state.consentConfig?.document_check);
+  adultOnlyMessage?.classList.toggle("hidden", !piercing || !flow.blocked);
+  if (adultOnlyMessage && flow.belowMinimum) adultOnlyMessage.textContent = `Este procedimento está disponível a partir de ${flow.minimumAge} anos.`;
+  else if (adultOnlyMessage) adultOnlyMessage.textContent = "Este procedimento está disponível somente para maiores de 18 anos.";
+  bookingForm.querySelectorAll("#guardianCard input").forEach((input) => {
+    input.required = piercing && flow.guardianRequired && !flow.blocked;
+    if (!flow.guardianRequired) input.value = "";
+  });
+  const guardianCheck = bookingForm.querySelector("input[name='guardian_authorization']");
+  if (guardianCheck) {
+    guardianCheck.required = piercing && flow.guardianRequired && !flow.blocked;
+    if (!flow.guardianRequired) guardianCheck.checked = false;
+  }
+  consentFieldset?.querySelectorAll("input[type='checkbox']").forEach((input) => {
+    input.required = piercing && !input.closest(".hidden");
+  });
+  updateSubmitAvailability();
+}
+
 function setSubmitState(isLoading, label = "Confirmar agendamento") {
   if (!bookingSubmitButton) return;
   bookingSubmitButton.disabled = isLoading;
   bookingSubmitButton.textContent = label;
+  if (!isLoading) updateSubmitAvailability();
 }
 
 function setClientMessage(html, success = false) {
@@ -357,10 +457,7 @@ function moveLightbox(direction) {
 function selectService(serviceId) {
   state.selectedServiceId = String(serviceId);
   if (bookingServiceInput) bookingServiceInput.value = state.selectedServiceId;
-  const service = (state.catalog.length ? state.catalog : publicServices).find((item) => {
-    const itemKey = item.service_id || item.serviceId || `custom:${item.key || item.name}`;
-    return String(itemKey) === state.selectedServiceId;
-  });
+  const service = selectedService();
   if (selectedServiceSummary && service) {
     selectedServiceName.textContent = service.name;
     selectedServiceMeta.textContent = `${service.price_label} · ${service.duration_label}${service.segment === "piercing" ? " · disponibilidade a confirmar" : ""}`;
@@ -371,6 +468,7 @@ function selectService(serviceId) {
     });
   }
   setMessage("");
+  updatePiercingFlow();
   loadAvailability();
 }
 
@@ -441,6 +539,42 @@ async function loadConfig() {
   } catch (error) {
     console.warn(error);
   }
+}
+
+async function loadConsentConfig() {
+  state.consentConfig = await api("/api/public/piercing-consent-config");
+  consentTermVersion.textContent = `Versão ${state.consentConfig.term_version}`;
+  consentTermContent.innerHTML = String(state.consentConfig.term_content || "")
+    .split(/\n\s*\n/)
+    .map((paragraph, index) => index === 0
+      ? `<h3>${escapeHtml(paragraph)}</h3>`
+      : `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
+    .join("");
+  updatePiercingFlow();
+}
+
+function openConsentModal(content = null, version = "") {
+  if (content !== null) {
+    consentTermVersion.textContent = version ? `Versão ${version}` : "";
+    consentTermContent.innerHTML = String(content)
+      .split(/\n\s*\n/)
+      .map((paragraph, index) => index === 0
+        ? `<h3>${escapeHtml(paragraph)}</h3>`
+        : `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
+      .join("");
+  }
+  lastConsentFocus = document.activeElement;
+  consentModal?.classList.remove("hidden");
+  consentModal?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("no-scroll");
+  consentModalPanel?.focus();
+}
+
+function closeConsentModal() {
+  consentModal?.classList.add("hidden");
+  consentModal?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("no-scroll");
+  lastConsentFocus?.focus?.();
 }
 
 async function loadGalleryItems() {
@@ -517,8 +651,28 @@ function setupLazyVideos() {
 bookingDate.min = todayIso();
 bookingDate.value = todayIso();
 bookingDate.addEventListener("change", loadAvailability);
+if (bookingBirthDate) {
+  bookingBirthDate.max = todayIso();
+  bookingBirthDate.addEventListener("change", updatePiercingFlow);
+  bookingBirthDate.addEventListener("input", updatePiercingFlow);
+}
+consentFieldset?.addEventListener("change", updateSubmitAvailability);
+openConsentModalButton?.addEventListener("click", () => openConsentModal(
+  state.consentConfig?.term_content || "",
+  state.consentConfig?.term_version || "",
+));
+closeConsentModalButton?.addEventListener("click", closeConsentModal);
+consentModal?.addEventListener("click", (event) => {
+  if (event.target === consentModal) closeConsentModal();
+});
 bookingPhone?.addEventListener("input", () => {
   bookingPhone.value = bookingPhone.value.replace(/[^\d\s()+-]/g, "");
+});
+bookingForm?.querySelector("input[name='guardian_phone']")?.addEventListener("input", (event) => {
+  event.currentTarget.value = event.currentTarget.value.replace(/[^\d\s()+-]/g, "");
+});
+bookingForm?.querySelector("input[name='guardian_cpf']")?.addEventListener("input", (event) => {
+  event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 11);
 });
 clientLookupForm?.querySelector("input[name='phone']")?.addEventListener("input", (event) => {
   event.currentTarget.value = event.currentTarget.value.replace(/[^\d\s()+-]/g, "");
@@ -553,6 +707,25 @@ bookingForm.addEventListener("submit", async (event) => {
     setMessage("Escolha uma data atual ou futura para agendar.");
     bookingDate.focus();
     return;
+  }
+  if (isPiercingSelection()) {
+    const flow = piercingFlowState();
+    if (flow.age === null) {
+      setMessage("Informe uma data de nascimento válida.");
+      bookingBirthDate?.focus();
+      return;
+    }
+    if (flow.blocked) {
+      setMessage(flow.belowMinimum ? `Este procedimento está disponível a partir de ${flow.minimumAge} anos.` : "Este procedimento está disponível somente para maiores de 18 anos.");
+      return;
+    }
+    const requiredChecks = Array.from(consentFieldset.querySelectorAll("input[type='checkbox']"))
+      .filter((input) => !input.closest(".hidden"));
+    if (requiredChecks.some((input) => !input.checked)) {
+      setMessage("Leia e aceite todos os itens obrigatórios do termo para continuar.");
+      consentFieldset.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
   }
 
   bookingSubmitting = true;
@@ -601,6 +774,10 @@ bookingForm.addEventListener("submit", async (event) => {
         phone: cleanedPhone,
         neighborhood,
         notes: String(data.notes || "").trim(),
+        term_accepted: Boolean(data.term_accepted),
+        truth_confirmed: Boolean(data.truth_confirmed),
+        anatomy_confirmed: Boolean(data.anatomy_confirmed),
+        guardian_authorization: Boolean(data.guardian_authorization),
       }),
     });
     const appointment = payload.appointment;
@@ -633,6 +810,8 @@ function renderClientAppointments(items, phone) {
   clientAppointments.innerHTML = items
     .map((item) => {
       const canRequest = ["Pendente", "Confirmado"].includes(item.status);
+      const isPiercing = String(item.service_key || "").startsWith("piercing-");
+      const completedPiercing = isPiercing && item.status === "Concluído";
       const requestText = item.reschedule_request_id
         ? `
           <div class="reschedule-note">
@@ -650,6 +829,15 @@ function renderClientAppointments(items, phone) {
             <p>${item.appointment_date} às ${item.appointment_time}</p>
             <p>${item.client_name}${item.client_neighborhood ? ` · ${item.client_neighborhood}` : ""}</p>
           </div>
+          ${isPiercing ? `
+            <div class="appointment-documentation">
+              <strong>Documentação</strong>
+              <p>${item.consent_id ? "✓ Termo de consentimento aceito" : "Termo de consentimento pendente"}</p>
+              ${item.consent_id ? `<button class="button secondary" type="button" data-view-consent="${item.id}" data-client-phone="${phone}">Ver termo</button>` : ""}
+              <a class="button secondary" href="/cuidados" data-view-aftercare="${item.id}" data-client-phone="${phone}">Ver cuidados</a>
+            </div>
+            ${completedPiercing ? `<div class="piercing-completed"><strong>Seu piercing foi realizado</strong><p>Veja agora os cuidados para uma boa cicatrização.</p><a class="button primary" href="/cuidados" data-view-aftercare="${item.id}" data-client-phone="${phone}">Ver cuidados pós-perfuração</a></div>` : ""}
+          ` : ""}
           ${requestText}
           ${
             canRequest
@@ -709,6 +897,30 @@ function renderClientAppointments(items, phone) {
       }
     });
   });
+  clientAppointments.querySelectorAll("[data-view-consent]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const payload = await api("/api/public/client-consent", {
+          method: "POST",
+          body: JSON.stringify({ appointment_id: button.dataset.viewConsent, phone: button.dataset.clientPhone }),
+        });
+        openConsentModal(payload.consent.term_content, payload.consent.term_version);
+      } catch (error) {
+        setClientMessage(error.message || "Não foi possível abrir o termo.");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+  clientAppointments.querySelectorAll("[data-view-aftercare]").forEach((link) => {
+    link.addEventListener("click", () => {
+      sessionStorage.setItem("studio_lr_aftercare_access", JSON.stringify({
+        appointment_id: link.dataset.viewAftercare,
+        phone: link.dataset.clientPhone,
+      }));
+    });
+  });
 }
 
 clientLookupForm?.addEventListener("submit", async (event) => {
@@ -731,7 +943,7 @@ clientLookupForm?.addEventListener("submit", async (event) => {
 
 async function start() {
   await loadConfig();
-  await loadCatalog();
+  await Promise.all([loadCatalog(), loadConsentConfig()]);
   const payload = await api("/api/public/services");
   state.services = payload.services;
   renderServices();
@@ -749,6 +961,20 @@ lightbox?.addEventListener("click", (event) => {
   if (event.target === lightbox) closeLightbox();
 });
 document.addEventListener("keydown", (event) => {
+  if (consentModal && !consentModal.classList.contains("hidden")) {
+    if (event.key === "Escape") closeConsentModal();
+    if (event.key === "Tab") {
+      const focusable = Array.from(consentModal.querySelectorAll("button, a[href], input, select, textarea, [tabindex]:not([tabindex='-1'])"))
+        .filter((element) => !element.disabled);
+      if (focusable.length) {
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    }
+    return;
+  }
   if (!lightbox || lightbox.classList.contains("hidden")) return;
   if (event.key === "Escape") closeLightbox();
   if (event.key === "ArrowLeft") moveLightbox(-1);

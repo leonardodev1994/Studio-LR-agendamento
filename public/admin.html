@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admin | Studio LR</title>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=body-piercing-1">
   </head>
   <body class="admin-body">
     <main class="ops-app">
@@ -42,6 +42,7 @@
             <button type="button" data-admin-module="servicos">Serviços</button>
             <button type="button" data-admin-module="horarios">Horários</button>
             <button type="button" data-admin-module="galeria">Galeria</button>
+            <button type="button" data-admin-module="body-piercing">Body Piercing</button>
             <button type="button" data-admin-module="configuracoes">Configurações</button>
           </nav>
         </aside>
@@ -263,6 +264,34 @@
             <div id="adminGalleryList" class="ops-gallery"></div>
           </section>
 
+          <section class="ops-module hidden" data-module-panel="body-piercing">
+            <div class="ops-section-head">
+              <div><span>Termos, cuidados e políticas</span><h1>Body Piercing</h1></div>
+            </div>
+            <section class="ops-panel">
+              <div class="ops-panel-head"><h2>Termos aceitos</h2></div>
+              <div id="piercingConsentsList" class="ops-table-wrap"></div>
+            </section>
+            <form id="piercingConfigForm" class="ops-panel piercing-config-form">
+              <div class="ops-panel-head"><h2>Políticas e versões atuais</h2><button class="ops-button primary" type="submit">Salvar Body Piercing</button></div>
+              <div class="ops-grid two">
+                <label>Idade mínima geral (0 = sem mínimo)<input name="minimum_age" type="number" min="0" max="17" required></label>
+                <label class="ops-check"><input name="document_check" type="checkbox"> Exigir conferência documental</label>
+                <label>Versão atual do termo<input name="term_version" required></label>
+                <label>Versão atual da política para menores<input name="policy_version" required></label>
+              </div>
+              <label>Termo de consentimento atual<textarea name="term_content" rows="16" required></textarea></label>
+              <label>Política para menores<textarea name="policy_content" rows="6" required></textarea></label>
+              <h3>Política e categoria por serviço</h3>
+              <div id="piercingServicesPolicy" class="ops-list"></div>
+              <h3>Cuidados gerais</h3>
+              <div id="aftercareGeneralFields" class="ops-grid two"></div>
+              <h3>Cuidados específicos por categoria</h3>
+              <div id="aftercareSpecificFields" class="ops-grid two"></div>
+              <p id="piercingConfigMessage" class="ops-message" role="status"></p>
+            </form>
+          </section>
+
           <section class="ops-module hidden" data-module-panel="configuracoes">
             <div class="ops-section-head">
               <div>
@@ -276,6 +305,6 @@
       </section>
     </main>
 
-    <script src="/admin.js?v=admin-operacional-1"></script>
+    <script src="/admin.js?v=body-piercing-1"></script>
   </body>
 </html>
