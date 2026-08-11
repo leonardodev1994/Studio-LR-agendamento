@@ -101,29 +101,20 @@
         </div>
 
         <form id="bookingForm" class="scheduler">
-          <fieldset>
-            <legend>1. Serviço</legend>
-            <div id="serviceChoices" class="choice-grid"></div>
-          </fieldset>
+          <input id="bookingServiceId" name="service_id" type="hidden" required>
+          <div id="selectedServiceSummary" class="selected-service-summary" aria-live="polite">
+            <span>Serviço escolhido</span>
+            <strong id="selectedServiceName">Selecione um serviço</strong>
+            <small id="selectedServiceMeta"></small>
+            <button id="changeServiceButton" type="button" aria-expanded="false" aria-controls="serviceQuickPicker">Alterar serviço</button>
+          </div>
+          <div id="serviceQuickPicker" class="service-quick-picker hidden">
+            <strong>Escolha outro serviço</strong>
+            <div id="serviceQuickPickerList" class="service-quick-picker-list"></div>
+          </div>
 
-          <fieldset>
-            <legend>2. Dia e horário</legend>
-            <div class="form-row two">
-              <label>
-                Dia
-                <input id="bookingDate" name="date" type="date" required>
-              </label>
-              <label>
-                Horário disponível
-                <select id="bookingTime" name="time" required>
-                  <option value="">Escolha um horário</option>
-                </select>
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>3. Seus dados</legend>
+          <fieldset id="bookingClientDetails">
+            <legend>1. Seus dados</legend>
             <div class="form-row two">
               <label>
                 Nome
@@ -138,6 +129,22 @@
               Bairro
               <input name="neighborhood" autocomplete="address-level3" placeholder="Ex.: Centro, Vilar dos Teles, Coelho da Rocha" required>
             </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>2. Escolha o dia e horário</legend>
+            <div class="form-row two">
+              <label>
+                Dia
+                <input id="bookingDate" name="date" type="date" required>
+              </label>
+              <label>
+                Horário disponível
+                <select id="bookingTime" name="time" required>
+                  <option value="">Escolha um horário</option>
+                </select>
+              </label>
+            </div>
             <label>
               Observação opcional
               <textarea name="notes" rows="3" placeholder="Ex.: preferência de formato, cor ou restrição de horário"></textarea>
