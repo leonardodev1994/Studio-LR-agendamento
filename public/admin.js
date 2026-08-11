@@ -462,6 +462,7 @@ function renderClients() {
           <td>${client.next_visit ? escapeHtml(client.next_visit) : "-"}</td>
           <td>${escapeHtml(client.total_spent_label || "R$ 0,00")}</td>
           <td>
+            <button class="ops-button ghost" type="button" data-client-access="${client.id}">${client.portal_protected ? "Renovar link" : "Criar acesso"}</button>
             ${Number(client.appointments_total || 0) === 0
               ? `<button class="ops-button danger" type="button" data-delete-client="${client.id}" data-client-name="${escapeHtml(client.name)}">Excluir</button>`
               : `<span title="Exclua os agendamentos vinculados antes de apagar o cadastro.">Com histórico</span>`}
@@ -472,6 +473,30 @@ function renderClients() {
   `;
   clientsList.querySelectorAll("[data-client-history]").forEach((button) => {
     button.addEventListener("click", () => openClientHistory(button.dataset.clientHistory));
+  });
+  clientsList.querySelectorAll("[data-client-access]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        const payload = await api(`/api/admin/clients/${button.dataset.clientAccess}/portal-access`, { method: "POST" });
+        const client = payload.client;
+        const link = new URL("/", location.origin);
+        link.searchParams.set("phone", client.phone);
+        link.searchParams.set("access", payload.access_token);
+        link.hash = "minha-agenda";
+        const digits = String(client.phone || "").replace(/\D/g, "");
+        const whatsappPhone = digits.startsWith("55") ? digits : `55${digits}`;
+        const text = `Olá, ${client.name}! Este é seu link pessoal para acessar sua agenda no Studio LR, sem senha: ${link.toString()}\n\nGuarde esta mensagem e não compartilhe o link.`;
+        window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+        clientActionMessage.textContent = "Novo link criado. O WhatsApp foi aberto para envio.";
+        clientActionMessage.className = "ops-message success";
+        await loadClients();
+      } catch (error) {
+        clientActionMessage.textContent = error.message || "Não foi possível criar o acesso.";
+        clientActionMessage.className = "ops-message";
+        button.disabled = false;
+      }
+    });
   });
   clientsList.querySelectorAll("[data-delete-client]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -759,7 +784,12 @@ async function openConsentRecord(id) {
         ${metricCard("Aceite", String(item.accepted_at || "").slice(0, 19).replace("T", " "))}
         ${metricCard("Idade no aceite", `${item.client_age} anos · ${item.is_minor ? "menor" : "maior"}`)}
         ${metricCard("Status", item.status)}
+        ${metricCard("Comprovante", item.receipt_code || "Legado")}
+        ${metricCard("Integridade", item.integrity_verified ? "Verificada" : "Registro legado")}
       </div>
+      ${item.receipt_code ? `<p><a class="ops-button" href="/comprovante?codigo=${encodeURIComponent(item.receipt_code)}" target="_blank" rel="noreferrer">Abrir comprovante imprimível</a></p>` : ""}
+      <h3>Declarações registradas</h3>
+      <p>${item.term_accepted ? "✓" : "—"} Leu e aceitou o termo<br>${item.truth_confirmed ? "✓" : "—"} Confirmou a veracidade dos dados<br>${item.anatomy_confirmed ? "✓" : "—"} Declarou ciência da avaliação anatômica${item.is_minor ? `<br>${item.guardian_authorization ? "✓" : "—"} Autorização do responsável legal` : ""}</p>
       ${item.is_minor ? `<h3>Responsável legal</h3><p>${escapeHtml(item.guardian_name)} · CPF ${escapeHtml(item.guardian_cpf)} · ${escapeHtml(item.guardian_phone)} · ${escapeHtml(item.guardian_relationship)}</p><h3>Política ${escapeHtml(item.minor_policy_version)}</h3><div class="admin-term-content">${escapeHtml(item.minor_policy_content).replaceAll("\n", "<br>")}</div>` : ""}
       <h3>Termo de consentimento aceito</h3>
       <div class="admin-term-content">${escapeHtml(item.term_content).replaceAll("\n", "<br>")}</div>
@@ -806,12 +836,12 @@ async function loadPiercingAdmin() {
     .map(([key, value]) => piercingField(key, value, 5).replace("data-care-key=", `data-specific-key="${key}" data-care-key=`)).join("");
   const consents = consentPayload.consents || [];
   piercingConsentsList.innerHTML = consents.length ? `
-    <table class="ops-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Agendamento</th><th>Aceite</th><th>Perfil</th><th>Versão</th><th></th></tr></thead>
+    <table class="ops-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Agendamento</th><th>Aceite</th><th>Perfil</th><th>Comprovante</th><th></th></tr></thead>
     <tbody>${consents.map((item) => `<tr>
       <td>${escapeHtml(item.client_name)}${item.guardian_name ? `<small>Resp.: ${escapeHtml(item.guardian_name)} · ${escapeHtml(item.guardian_cpf)}</small>` : ""}</td>
       <td>${escapeHtml(item.service_name)}</td><td>${formatDate(item.appointment_date)} ${escapeHtml(item.appointment_time)}</td>
       <td>${escapeHtml(String(item.accepted_at || "").slice(0, 16).replace("T", " "))}</td>
-      <td>${item.is_minor ? "Menor" : "Maior"}</td><td>${escapeHtml(item.term_version)}</td>
+      <td>${item.is_minor ? "Menor" : "Maior"}</td><td>${escapeHtml(item.receipt_code || item.term_version)}</td>
       <td><button class="ops-button ghost" type="button" data-consent-detail="${item.id}">Ver termo aceito</button></td>
     </tr>`).join("")}</tbody></table>` : `<p class="ops-empty">Nenhum termo registrado.</p>`;
   piercingConsentsList.querySelectorAll("[data-consent-detail]").forEach((button) => {

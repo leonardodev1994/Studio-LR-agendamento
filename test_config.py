@@ -66,7 +66,12 @@ class PersistentDatabaseConfigTests(unittest.TestCase):
             connection = FakeSchemaConnection(
                 {
                     "services": {"minor_policy", "aftercare_category"},
-                    "clients": {"birth_date"},
+                    "clients": {"birth_date", "portal_token_hash", "portal_token_created_at"},
+                    "piercing_consents": {
+                        "receipt_code", "term_accepted", "truth_confirmed", "anatomy_confirmed",
+                        "guardian_authorization", "acceptance_method", "evidence_payload",
+                        "evidence_hash", "evidence_signature",
+                    },
                 },
                 consent_table="piercing_consents",
             )

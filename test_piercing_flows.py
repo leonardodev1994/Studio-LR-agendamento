@@ -102,6 +102,7 @@ class PiercingFlowTests(unittest.TestCase):
         payload = self.booking_payload("manicure-simples", "21999000001", date_value)
         status, response = self.request("POST", "/api/public/appointments", payload)
         self.assertEqual(status, 201)
+        self.assertTrue(response["client_access"]["token"])
         consent = self.query("SELECT id FROM piercing_consents WHERE appointment_id = ?", (response["appointment"]["id"],))
         self.assertEqual(consent, [])
 
@@ -117,19 +118,31 @@ class PiercingFlowTests(unittest.TestCase):
         status, response = self.request("POST", "/api/public/appointments", payload)
         self.assertEqual(status, 201)
         appointment_id = response["appointment"]["id"]
-        saved = self.query("SELECT term_version, term_content, term_hash FROM piercing_consents WHERE appointment_id = ?", (appointment_id,))[0]
+        token = response["client_access"]["token"]
+        saved = self.query("""SELECT term_version, term_content, term_hash, receipt_code,
+            term_accepted, truth_confirmed, anatomy_confirmed, evidence_payload,
+            evidence_hash, evidence_signature FROM piercing_consents WHERE appointment_id = ?""", (appointment_id,))[0]
+        self.assertTrue(saved["receipt_code"].startswith("LR-"))
+        self.assertEqual(saved["term_accepted"], 1)
+        self.assertEqual(saved["truth_confirmed"], 1)
+        self.assertEqual(saved["anatomy_confirmed"], 1)
+        self.assertEqual(server.sha256_text(saved["evidence_payload"]), saved["evidence_hash"])
+        self.assertEqual(server.evidence_signature(saved["evidence_payload"]), saved["evidence_signature"])
         conn = server.db()
         server.set_setting_value(conn, "piercing_term_version", "future-v2")
         server.set_setting_value(conn, "piercing_term_content", "Novo texto futuro")
         conn.commit()
         conn.close()
-        status, consent = self.request("POST", "/api/public/client-consent", {"appointment_id": appointment_id, "phone": payload["phone"]})
+        status, consent = self.request("POST", "/api/public/client-consent", {"appointment_id": appointment_id, "phone": payload["phone"], "access_token": token})
         self.assertEqual(status, 200)
         self.assertEqual(consent["consent"]["term_version"], saved["term_version"])
         self.assertEqual(consent["consent"]["term_content"], saved["term_content"])
         self.assertEqual(len(saved["term_hash"]), 64)
         denied, _ = self.request("POST", "/api/public/client-consent", {"appointment_id": appointment_id, "phone": "21999999999"})
-        self.assertEqual(denied, 404)
+        self.assertEqual(denied, 403)
+        status, receipt = self.request("GET", "/api/public/consent-receipt?" + urllib.parse.urlencode({"code": saved["receipt_code"]}))
+        self.assertEqual(status, 200)
+        self.assertTrue(receipt["receipt"]["integrity_verified"])
 
     def test_c_minor_requires_guardian_and_records_both(self):
         date_value = self.bookable_date(2)
@@ -181,7 +194,18 @@ class PiercingFlowTests(unittest.TestCase):
         server.execute(conn, "UPDATE appointments SET status = 'Concluído' WHERE id = ?", (appointment["id"],))
         conn.commit()
         conn.close()
-        status, agenda = self.request("GET", "/api/public/client-appointments?phone=21999000002")
+        denied, _ = self.request("GET", "/api/public/client-appointments?phone=21999000002")
+        self.assertEqual(denied, 403)
+        token_hash = self.query("SELECT portal_token_hash FROM clients WHERE phone = ?", ("21999000002",))[0]["portal_token_hash"]
+        consent = self.query("SELECT evidence_payload FROM piercing_consents pc JOIN clients c ON c.id = pc.client_id WHERE c.phone = ?", ("21999000002",))[0]
+        # The raw token is intentionally not recoverable from the database. Issue a fresh one as admin would.
+        conn = server.db()
+        client_id = self.query("SELECT id FROM clients WHERE phone = ?", ("21999000002",))[0]["id"]
+        access = server.issue_client_portal_token(conn, client_id)
+        conn.commit()
+        conn.close()
+        self.assertNotEqual(access, token_hash)
+        status, agenda = self.request("GET", "/api/public/client-appointments?" + urllib.parse.urlencode({"phone": "21999000002", "access": access}))
         self.assertEqual(status, 200)
         self.assertEqual(agenda["appointments"][0]["status"], "Concluído")
         status, care = self.request("GET", "/api/public/aftercare?service_key=piercing-industrial")

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <title>Comprovante de consentimento | Studio LR</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css?v=consent-proof-1">
+  </head>
+  <body class="receipt-page">
+    <main class="receipt-shell">
+      <div class="receipt-actions no-print">
+        <a class="button secondary" href="/#minha-agenda">Voltar à agenda</a>
+        <button id="shareReceipt" class="button secondary" type="button">Enviar referência</button>
+        <button class="button primary" type="button" onclick="window.print()">Salvar em PDF / imprimir</button>
+      </div>
+      <article id="receipt" class="receipt-document" aria-live="polite">
+        <header class="receipt-header">
+          <img src="/assets/optimized/logo/logo-oficial.png" alt="Studio LR">
+          <div><p class="eyebrow">Registro eletrônico</p><h1>Comprovante de consentimento</h1></div>
+        </header>
+        <p id="receiptMessage" class="form-message">Carregando comprovante...</p>
+        <div id="receiptContent" class="hidden"></div>
+      </article>
+      <p class="receipt-privacy no-print">Este link funciona como uma chave de acesso ao comprovante. Não publique nem encaminhe para terceiros.</p>
+    </main>
+    <script src="/comprovante.js?v=consent-proof-1"></script>
+  </body>
+</html>

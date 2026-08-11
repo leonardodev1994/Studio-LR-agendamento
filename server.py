@@ -568,6 +568,8 @@ class Database:
             phone TEXT NOT NULL,
             neighborhood TEXT NOT NULL DEFAULT '',
             birth_date TEXT NOT NULL DEFAULT '',
+            portal_token_hash TEXT NOT NULL DEFAULT '',
+            portal_token_created_at TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(phone)
         );
@@ -653,7 +655,16 @@ class Database:
             accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             status TEXT NOT NULL DEFAULT 'Aceito',
             ip_address TEXT NOT NULL DEFAULT '',
-            user_agent TEXT NOT NULL DEFAULT ''
+            user_agent TEXT NOT NULL DEFAULT '',
+            receipt_code TEXT NOT NULL DEFAULT '',
+            term_accepted INTEGER NOT NULL DEFAULT 1,
+            truth_confirmed INTEGER NOT NULL DEFAULT 1,
+            anatomy_confirmed INTEGER NOT NULL DEFAULT 1,
+            guardian_authorization INTEGER NOT NULL DEFAULT 0,
+            acceptance_method TEXT NOT NULL DEFAULT 'web_checkbox',
+            evidence_payload TEXT NOT NULL DEFAULT '',
+            evidence_hash TEXT NOT NULL DEFAULT '',
+            evidence_signature TEXT NOT NULL DEFAULT ''
         );
         """
 
@@ -776,6 +787,10 @@ def run_migrations(conn):
             execute(conn, "ALTER TABLE clients ADD COLUMN neighborhood TEXT NOT NULL DEFAULT ''")
         if "birth_date" not in client_columns:
             execute(conn, "ALTER TABLE clients ADD COLUMN birth_date TEXT NOT NULL DEFAULT ''")
+        if "portal_token_hash" not in client_columns:
+            execute(conn, "ALTER TABLE clients ADD COLUMN portal_token_hash TEXT NOT NULL DEFAULT ''")
+        if "portal_token_created_at" not in client_columns:
+            execute(conn, "ALTER TABLE clients ADD COLUMN portal_token_created_at TEXT NOT NULL DEFAULT ''")
         appointment_columns = {
             row["name"]
             for row in execute(conn, "PRAGMA table_info(appointments)").fetchall()
@@ -837,6 +852,29 @@ def run_migrations(conn):
             )
             """,
         )
+        consent_columns = {
+            row["name"]
+            for row in execute(conn, "PRAGMA table_info(piercing_consents)").fetchall()
+        }
+        consent_additions = {
+            "receipt_code": "TEXT NOT NULL DEFAULT ''",
+            "term_accepted": "INTEGER NOT NULL DEFAULT 1",
+            "truth_confirmed": "INTEGER NOT NULL DEFAULT 1",
+            "anatomy_confirmed": "INTEGER NOT NULL DEFAULT 1",
+            "guardian_authorization": "INTEGER NOT NULL DEFAULT 0",
+            "acceptance_method": "TEXT NOT NULL DEFAULT 'web_checkbox'",
+            "evidence_payload": "TEXT NOT NULL DEFAULT ''",
+            "evidence_hash": "TEXT NOT NULL DEFAULT ''",
+            "evidence_signature": "TEXT NOT NULL DEFAULT ''",
+        }
+        for column, definition in consent_additions.items():
+            if column not in consent_columns:
+                execute(conn, f"ALTER TABLE piercing_consents ADD COLUMN {column} {definition}")
+        execute(
+            conn,
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_piercing_consents_receipt_code "
+            "ON piercing_consents(receipt_code) WHERE receipt_code != ''",
+        )
         return
 
     with conn.cursor() as cursor:
@@ -872,7 +910,12 @@ def validate_body_piercing_schema(conn):
         return
     required_columns = {
         "services": {"minor_policy", "aftercare_category"},
-        "clients": {"birth_date"},
+        "clients": {"birth_date", "portal_token_hash", "portal_token_created_at"},
+        "piercing_consents": {
+            "receipt_code", "term_accepted", "truth_confirmed", "anatomy_confirmed",
+            "guardian_authorization", "acceptance_method", "evidence_payload",
+            "evidence_hash", "evidence_signature",
+        },
     }
     rows = execute(
         conn,
@@ -880,7 +923,7 @@ def validate_body_piercing_schema(conn):
         SELECT table_name, column_name
         FROM information_schema.columns
         WHERE table_schema = current_schema()
-          AND table_name IN ('services', 'clients')
+          AND table_name IN ('services', 'clients', 'piercing_consents')
         """,
     ).fetchall()
     available = {}
@@ -900,7 +943,8 @@ def validate_body_piercing_schema(conn):
     if missing:
         raise RuntimeError(
             "Schema de Body Piercing ainda não aplicado no PostgreSQL/Supabase. "
-            "Execute manualmente migrations/20260811_body_piercing.sql antes do deploy. "
+            "Execute manualmente migrations/20260811_body_piercing.sql e "
+            "migrations/20260812_consent_evidence.sql antes do deploy. "
             f"Itens ausentes: {', '.join(missing)}"
         )
 
@@ -1228,7 +1272,7 @@ def clients_summary():
         conn,
         """
         SELECT
-            c.id, c.name, c.phone, c.neighborhood, c.created_at,
+            c.id, c.name, c.phone, c.neighborhood, c.created_at, c.portal_token_hash,
             COUNT(a.id) AS appointments_total,
             SUM(CASE WHEN a.status = 'Concluído' THEN 1 ELSE 0 END) AS visits,
             MAX(CASE WHEN a.status = 'Concluído' THEN a.appointment_date ELSE NULL END) AS last_visit,
@@ -1242,7 +1286,7 @@ def clients_summary():
         FROM clients c
         LEFT JOIN appointments a ON a.client_id = c.id
         LEFT JOIN services s ON s.id = a.service_id
-        GROUP BY c.id, c.name, c.phone, c.neighborhood, c.created_at
+        GROUP BY c.id, c.name, c.phone, c.neighborhood, c.created_at, c.portal_token_hash
         ORDER BY c.name
         """,
         (dt.date.today().isoformat(), dt.date.today().isoformat(), dt.datetime.now().strftime("%H:%M")),
@@ -1251,6 +1295,7 @@ def clients_summary():
     clients = rows_dict(rows)
     for client in clients:
         client["total_spent_label"] = price_label(client["total_spent"])
+        client["portal_protected"] = bool(client.pop("portal_token_hash", ""))
     return clients
 
 
@@ -1480,6 +1525,7 @@ def appointment_rows(conn, date_value=None, status_filter="", service_filter="",
             s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
             s.price_cents AS catalog_price_cents, s.duration_minutes, s.catalog_key AS service_key,
             pc.id AS consent_id, pc.is_minor AS consent_is_minor, pc.status AS consent_status,
+            pc.receipt_code AS consent_receipt_code,
             rr.id AS reschedule_request_id,
             rr.requested_date,
             rr.requested_time,
@@ -1564,7 +1610,7 @@ def client_history(client_id):
     conn = db()
     client = execute(
         conn,
-        "SELECT id, name, phone, neighborhood, created_at FROM clients WHERE id = ?",
+        "SELECT id, name, phone, neighborhood, created_at, portal_token_hash FROM clients WHERE id = ?",
         (client_id,),
     ).fetchone()
     if not client:
@@ -1617,8 +1663,10 @@ def client_history(client_id):
     appointments = [item for item in appointments if int(item["client_id"]) == int(client_id)]
     conn.close()
     visits = totals["total_visits"]
+    client_data = dict(client)
+    client_data["portal_protected"] = bool(client_data.pop("portal_token_hash", ""))
     return {
-        "client": dict(client),
+        "client": client_data,
         "total_visits": visits,
         "last_visit": totals["last_visit"],
         "next_appointment": row_dict(next_row),
@@ -1804,6 +1852,60 @@ def mask_phone(value):
     return f"(**) *****-{digits[-4:]}" if len(digits) >= 4 else ""
 
 
+def utc_timestamp():
+    return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def sha256_text(value):
+    return hashlib.sha256(str(value).encode("utf-8")).hexdigest()
+
+
+def evidence_signature(value):
+    return hmac.new(SECRET_KEY.encode("utf-8"), str(value).encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def new_receipt_code():
+    return f"LR-{dt.date.today().year}-{secrets.token_urlsafe(16)}"
+
+
+def issue_client_portal_token(conn, client_id):
+    token = secrets.token_urlsafe(32)
+    execute(
+        conn,
+        "UPDATE clients SET portal_token_hash = ?, portal_token_created_at = ? WHERE id = ?",
+        (sha256_text(token), utc_timestamp(), client_id),
+    )
+    return token
+
+
+def client_access_allowed(conn, phone, token=""):
+    client = execute(
+        conn,
+        "SELECT id, portal_token_hash FROM clients WHERE phone = ?",
+        (phone,),
+    ).fetchone()
+    if not client:
+        return False, False
+    expected = str(client["portal_token_hash"] or "")
+    if not expected:
+        return True, False
+    provided = sha256_text(token) if token else ""
+    return bool(provided and hmac.compare_digest(provided, expected)), True
+
+
+def consent_evidence_verified(consent):
+    payload = str(consent.get("evidence_payload") or "")
+    saved_hash = str(consent.get("evidence_hash") or "")
+    saved_signature = str(consent.get("evidence_signature") or "")
+    return bool(
+        payload
+        and saved_hash
+        and saved_signature
+        and hmac.compare_digest(sha256_text(payload), saved_hash)
+        and hmac.compare_digest(evidence_signature(payload), saved_signature)
+    )
+
+
 def is_past_date(value):
     parsed = parse_date(value)
     return parsed is not None and parsed < dt.date.today()
@@ -1916,10 +2018,12 @@ def appointment_payload(appointment_id):
             a.id, a.appointment_date, a.appointment_time, a.notes, a.status,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
             s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
-            s.price_cents AS catalog_price_cents, s.duration_minutes, s.catalog_key AS service_key
+            s.price_cents AS catalog_price_cents, s.duration_minutes, s.catalog_key AS service_key,
+            pc.receipt_code
         FROM appointments a
         JOIN clients c ON c.id = a.client_id
         JOIN services s ON s.id = a.service_id
+        LEFT JOIN piercing_consents pc ON pc.appointment_id = a.id
         WHERE a.id = ?
         """,
         (appointment_id,),
@@ -1940,6 +2044,7 @@ def appointment_payload(appointment_id):
             f"Horário desejado: {data['appointment_time']}\n"
             f"Nome: {data['client_name']}\n"
             f"Telefone: {data['client_phone']}\n\n"
+            f"Comprovante do consentimento: {data.get('receipt_code') or 'registrado no sistema'}\n\n"
             "Este serviço está disponível? Aguardo a confirmação pelo WhatsApp ou pelo sistema."
         )
     else:
@@ -1957,8 +2062,12 @@ def appointment_payload(appointment_id):
     return data
 
 
-def client_appointments(phone):
+def client_appointments(phone, access_token=""):
     conn = db()
+    allowed, protected = client_access_allowed(conn, phone, access_token)
+    if not allowed:
+        conn.close()
+        return None, protected
     rows = execute(
         conn,
         """
@@ -1966,7 +2075,7 @@ def client_appointments(phone):
             a.id, a.appointment_date, a.appointment_time, a.notes, a.status,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
             s.name AS service_name, s.catalog_key AS service_key, s.aftercare_category,
-            pc.id AS consent_id, pc.status AS consent_status, pc.term_version,
+            pc.id AS consent_id, pc.status AS consent_status, pc.term_version, pc.receipt_code,
             rr.id AS reschedule_request_id,
             rr.requested_date,
             rr.requested_time,
@@ -1988,7 +2097,7 @@ def client_appointments(phone):
         (phone,),
     ).fetchall()
     conn.close()
-    return rows_dict(rows)
+    return rows_dict(rows), protected
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -2005,6 +2114,8 @@ class Handler(SimpleHTTPRequestHandler):
             clean_path = "/admin.html"
         if clean_path in ["/cuidados", "/cuidados/"]:
             clean_path = "/cuidados.html"
+        if clean_path in ["/comprovante", "/comprovante/"]:
+            clean_path = "/comprovante.html"
         if clean_path == "/":
             clean_path = "/index.html"
         resolved = (PUBLIC / clean_path.lstrip("/")).resolve()
@@ -2051,7 +2162,9 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path.startswith("/assets/"):
             self.send_header("Cache-Control", "public, max-age=31536000, immutable")
-        elif parsed.path.endswith((".html", "/")):
+        elif parsed.path.startswith(("/api/public/client-", "/api/public/consent-receipt")):
+            self.send_header("Cache-Control", "no-store")
+        elif parsed.path.endswith((".html", "/")) or parsed.path in ["/admin", "/cuidados", "/comprovante"]:
             self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
@@ -2141,9 +2254,39 @@ class Handler(SimpleHTTPRequestHandler):
             return self.json({"catalog": public_catalog()})
         if parsed.path in ["/api/client-appointments", "/api/public/client-appointments"]:
             phone = phone_digits(query.get("phone", [""])[0])
+            access_token = str(query.get("access", [""])[0]).strip()
             if not valid_phone(phone):
                 return self.bad("Informe um WhatsApp válido com DDD.")
-            return self.json({"appointments": client_appointments(phone)})
+            appointments, protected = client_appointments(phone, access_token)
+            if appointments is None:
+                return self.bad(
+                    "Este cadastro está protegido. Abra seu link pessoal recebido no WhatsApp ou peça um novo acesso ao Studio.",
+                    403,
+                )
+            return self.json({"appointments": appointments, "access_protected": protected})
+        if parsed.path == "/api/public/consent-receipt":
+            code = str(query.get("code", [""])[0]).strip()
+            if not re.fullmatch(r"LR-\d{4}-[A-Za-z0-9_-]{12,}", code):
+                return self.bad("Comprovante inválido.")
+            conn = db()
+            try:
+                row = execute(conn, """
+                    SELECT pc.*, a.appointment_date, a.appointment_time
+                    FROM piercing_consents pc
+                    JOIN appointments a ON a.id = pc.appointment_id
+                    WHERE pc.receipt_code = ?
+                """, (code,)).fetchone()
+                if not row:
+                    return self.bad("Comprovante não encontrado.", 404)
+                receipt = dict(row)
+                receipt["guardian_cpf"] = mask_cpf(receipt.get("guardian_cpf"))
+                receipt["guardian_phone"] = mask_phone(receipt.get("guardian_phone"))
+                receipt["integrity_verified"] = consent_evidence_verified(receipt)
+                for key in ["ip_address", "user_agent", "evidence_payload", "evidence_signature"]:
+                    receipt.pop(key, None)
+                return self.json({"receipt": receipt})
+            finally:
+                conn.close()
         if parsed.path in ["/api/availability", "/api/public/availability"]:
             date_value = query.get("date", [""])[0]
             service_id = query.get("service_id", [""])[0] or None
@@ -2255,6 +2398,7 @@ class Handler(SimpleHTTPRequestHandler):
                     SELECT pc.id, pc.appointment_id, pc.client_name, pc.is_minor,
                            pc.guardian_name, pc.guardian_cpf, pc.guardian_phone,
                            pc.service_name, pc.term_version, pc.accepted_at, pc.status,
+                           pc.receipt_code,
                            a.appointment_date, a.appointment_time
                     FROM piercing_consents pc
                     JOIN appointments a ON a.id = pc.appointment_id
@@ -2319,7 +2463,9 @@ class Handler(SimpleHTTPRequestHandler):
                 """, (consent_id,)).fetchone()
                 if not consent:
                     return self.bad("Termo não encontrado.", 404)
-                return self.json({"consent": dict(consent)})
+                consent_data = dict(consent)
+                consent_data["integrity_verified"] = consent_evidence_verified(consent_data)
+                return self.json({"consent": consent_data})
             if len(parts) == 4 and parts[:3] == ["api", "admin", "clients"]:
                 try:
                     history = client_history(int(parts[3]))
@@ -2360,6 +2506,9 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.bad("Informe um WhatsApp válido com DDD.")
             conn = db()
             try:
+                allowed, _ = client_access_allowed(conn, phone, str(payload.get("access_token", "")).strip())
+                if not allowed:
+                    return self.bad("Acesso inválido. Abra seu link pessoal recebido no WhatsApp.", 403)
                 row = execute(
                     conn,
                     """
@@ -2369,7 +2518,9 @@ class Handler(SimpleHTTPRequestHandler):
                            pc.client_age, pc.is_minor, pc.term_version, pc.term_content,
                            pc.term_hash, pc.minor_policy_version, pc.minor_policy_content,
                            pc.guardian_name, pc.guardian_cpf, pc.guardian_phone,
-                           pc.guardian_relationship, pc.accepted_at, pc.status
+                           pc.guardian_relationship, pc.accepted_at, pc.status,
+                           pc.receipt_code, pc.term_accepted, pc.truth_confirmed,
+                           pc.anatomy_confirmed, pc.guardian_authorization
                     FROM appointments a
                     JOIN clients c ON c.id = a.client_id
                     JOIN services s ON s.id = a.service_id
@@ -2504,6 +2655,12 @@ class Handler(SimpleHTTPRequestHandler):
                     conn,
                     "SELECT id FROM clients WHERE phone = ?", (phone,)
                 ).fetchone()["id"]
+                portal_row = execute(
+                    conn, "SELECT portal_token_hash FROM clients WHERE id = ?", (client_id,)
+                ).fetchone()
+                portal_access_token = ""
+                if not portal_row["portal_token_hash"]:
+                    portal_access_token = issue_client_portal_token(conn, client_id)
                 appointment_params = (
                     service_id,
                     client_id,
@@ -2540,6 +2697,40 @@ class Handler(SimpleHTTPRequestHandler):
                     policy = consent_data["policy"]
                     technical_ip = str(self.client_address[0] if self.client_address else "")[:64]
                     user_agent = str(self.headers.get("User-Agent", ""))[:500]
+                    accepted_at = utc_timestamp()
+                    receipt_code = new_receipt_code()
+                    evidence = {
+                        "receipt_code": receipt_code,
+                        "appointment_id": appointment_id,
+                        "client_id": client_id,
+                        "client_name": client_name,
+                        "client_birth_date": consent_data["birth_date"],
+                        "client_age": consent_data["age"],
+                        "is_minor": consent_data["is_minor"],
+                        "service_id": service_id,
+                        "service_name": service_check["name"],
+                        "service_key": service_check["catalog_key"],
+                        "term_version": policy["term_version"],
+                        "term_hash": consent_data["term_hash"],
+                        "minor_policy_version": policy["policy_version"] if consent_data["is_minor"] else "",
+                        "term_accepted": True,
+                        "truth_confirmed": True,
+                        "anatomy_confirmed": True,
+                        "guardian_authorization": bool(payload.get("guardian_authorization")) if consent_data["is_minor"] else False,
+                        "guardian_name": guardian["name"],
+                        "guardian_cpf": guardian["cpf"],
+                        "guardian_birth_date": guardian["birth_date"],
+                        "guardian_phone": guardian["phone"],
+                        "guardian_relationship": guardian["relationship"],
+                        "accepted_at": accepted_at,
+                        "acceptance_method": "web_checkbox",
+                        "ip_address": technical_ip,
+                        "user_agent": user_agent,
+                    }
+                    evidence_json = json.dumps(
+                        evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                    )
+                    evidence_hash_value = sha256_text(evidence_json)
                     execute(
                         conn,
                         """
@@ -2549,8 +2740,11 @@ class Handler(SimpleHTTPRequestHandler):
                             term_version, term_content, term_hash,
                             minor_policy_version, minor_policy_content,
                             guardian_name, guardian_cpf, guardian_birth_date,
-                            guardian_phone, guardian_relationship, ip_address, user_agent
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            guardian_phone, guardian_relationship, accepted_at, ip_address, user_agent,
+                            receipt_code, term_accepted, truth_confirmed, anatomy_confirmed,
+                            guardian_authorization, acceptance_method, evidence_payload,
+                            evidence_hash, evidence_signature
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             appointment_id, client_id, client_name, consent_data["birth_date"],
@@ -2560,11 +2754,17 @@ class Handler(SimpleHTTPRequestHandler):
                             policy["policy_version"] if consent_data["is_minor"] else "",
                             policy["policy_content"] if consent_data["is_minor"] else "",
                             guardian["name"], guardian["cpf"], guardian["birth_date"],
-                            guardian["phone"], guardian["relationship"], technical_ip, user_agent,
+                            guardian["phone"], guardian["relationship"], accepted_at, technical_ip, user_agent,
+                            receipt_code, True, True, True,
+                            evidence["guardian_authorization"], "web_checkbox", evidence_json,
+                            evidence_hash_value, evidence_signature(evidence_json),
                         ),
                     )
                 conn.commit()
-                return self.json({"appointment": appointment_payload(appointment_id)}, 201)
+                return self.json({
+                    "appointment": appointment_payload(appointment_id),
+                    "client_access": {"phone": phone, "token": portal_access_token},
+                }, 201)
             except Exception as exc:
                 if exc.__class__.__name__ not in ["IntegrityError", "UniqueViolation"]:
                     raise
@@ -2591,6 +2791,9 @@ class Handler(SimpleHTTPRequestHandler):
 
             conn = db()
             try:
+                allowed, _ = client_access_allowed(conn, phone, str(payload.get("access_token", "")).strip())
+                if not allowed:
+                    return self.bad("Acesso inválido. Abra seu link pessoal recebido no WhatsApp.", 403)
                 current = execute(
                     conn,
                     """
@@ -2621,6 +2824,23 @@ class Handler(SimpleHTTPRequestHandler):
 
     def route_admin_post(self, parsed):
         parts = parsed.path.strip("/").split("/")
+        if len(parts) == 5 and parts[:3] == ["api", "admin", "clients"] and parts[4] == "portal-access":
+            if not self.require_auth():
+                return
+            try:
+                client_id = int(parts[3])
+            except ValueError:
+                return self.bad("Cliente inválida.")
+            conn = db()
+            try:
+                client = execute(conn, "SELECT id, name, phone FROM clients WHERE id = ?", (client_id,)).fetchone()
+                if not client:
+                    return self.bad("Cliente não encontrada.", 404)
+                token = issue_client_portal_token(conn, client_id)
+                conn.commit()
+                return self.json({"client": dict(client), "access_token": token})
+            finally:
+                conn.close()
         if len(parts) == 5 and parts[:4] == ["api", "admin", "catalog", "photo"]:
             if not self.require_auth():
                 return

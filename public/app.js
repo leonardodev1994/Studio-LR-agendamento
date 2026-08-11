@@ -53,6 +53,11 @@ const consentTermContent = document.querySelector("#consentTermContent");
 const consentTermVersion = document.querySelector("#consentTermVersion");
 const openConsentModalButton = document.querySelector("#openConsentModal");
 const closeConsentModalButton = document.querySelector("#closeConsentModal");
+const portalStorageKey = (phone) => `studio_lr_portal_${phoneDigits(phone)}`;
+const getPortalToken = (phone) => localStorage.getItem(portalStorageKey(phone)) || "";
+const storePortalToken = (phone, token) => {
+  if (phone && token) localStorage.setItem(portalStorageKey(phone), token);
+};
 const publicServices = [
   {
     key: "manicure-simples",
@@ -778,15 +783,22 @@ bookingForm.addEventListener("submit", async (event) => {
         truth_confirmed: Boolean(data.truth_confirmed),
         anatomy_confirmed: Boolean(data.anatomy_confirmed),
         guardian_authorization: Boolean(data.guardian_authorization),
+        access_token: getPortalToken(cleanedPhone),
       }),
     });
     const appointment = payload.appointment;
+    storePortalToken(cleanedPhone, payload.client_access?.token);
+    const receiptButton = appointment.receipt_code
+      ? `<a class="button secondary" href="/comprovante?codigo=${encodeURIComponent(appointment.receipt_code)}" target="_blank" rel="noreferrer">Abrir comprovante</a>`
+      : "";
     setMessage(
       `
         <strong>${String(appointment.service_key || "").startsWith("piercing-") ? "Pedido de disponibilidade enviado!" : "Agendamento solicitado com sucesso!"}</strong><br>
         ${appointment.service_name} em ${appointment.appointment_date} às ${appointment.appointment_time}.<br><br>
         ${String(appointment.service_key || "").startsWith("piercing-") ? "A perfuração será confirmada pela profissional.<br><br>" : ""}
+        Seu acesso à agenda foi protegido e salvo neste aparelho — sem senha, e-mail ou CPF.<br><br>
         <a class="button primary" href="${appointment.whatsapp_url}" target="_blank" rel="noreferrer">${String(appointment.service_key || "").startsWith("piercing-") ? "Perguntar disponibilidade no WhatsApp" : "Enviar confirmação pelo WhatsApp"}</a>
+        ${receiptButton}
       `,
       true,
     );
@@ -800,7 +812,7 @@ bookingForm.addEventListener("submit", async (event) => {
   }
 });
 
-function renderClientAppointments(items, phone) {
+function renderClientAppointments(items, phone, accessToken = "") {
   if (!clientAppointments) return;
   if (!items.length) {
     clientAppointments.innerHTML = "<p class='form-message'>Nenhum agendamento encontrado para esse WhatsApp.</p>";
@@ -834,6 +846,7 @@ function renderClientAppointments(items, phone) {
               <strong>Documentação</strong>
               <p>${item.consent_id ? "✓ Termo de consentimento aceito" : "Termo de consentimento pendente"}</p>
               ${item.consent_id ? `<button class="button secondary" type="button" data-view-consent="${item.id}" data-client-phone="${phone}">Ver termo</button>` : ""}
+              ${item.receipt_code ? `<a class="button secondary" href="/comprovante?codigo=${encodeURIComponent(item.receipt_code)}" target="_blank" rel="noreferrer">Comprovante</a>` : ""}
               <a class="button secondary" href="/cuidados" data-view-aftercare="${item.id}" data-client-phone="${phone}">Ver cuidados</a>
             </div>
             ${completedPiercing ? `<div class="piercing-completed"><strong>Seu piercing foi realizado</strong><p>Veja agora os cuidados para uma boa cicatrização.</p><a class="button primary" href="/cuidados" data-view-aftercare="${item.id}" data-client-phone="${phone}">Ver cuidados pós-perfuração</a></div>` : ""}
@@ -883,6 +896,7 @@ function renderClientAppointments(items, phone) {
           body: JSON.stringify({
             appointment_id: form.dataset.appointmentId,
             phone: form.dataset.phone,
+            access_token: accessToken,
             requested_date: data.requested_date,
             requested_time: data.requested_time,
             message: String(data.message || "").trim(),
@@ -903,7 +917,7 @@ function renderClientAppointments(items, phone) {
       try {
         const payload = await api("/api/public/client-consent", {
           method: "POST",
-          body: JSON.stringify({ appointment_id: button.dataset.viewConsent, phone: button.dataset.clientPhone }),
+          body: JSON.stringify({ appointment_id: button.dataset.viewConsent, phone: button.dataset.clientPhone, access_token: accessToken }),
         });
         openConsentModal(payload.consent.term_content, payload.consent.term_version);
       } catch (error) {
@@ -918,6 +932,7 @@ function renderClientAppointments(items, phone) {
       sessionStorage.setItem("studio_lr_aftercare_access", JSON.stringify({
         appointment_id: link.dataset.viewAftercare,
         phone: link.dataset.clientPhone,
+        access_token: accessToken,
       }));
     });
   });
@@ -933,8 +948,10 @@ clientLookupForm?.addEventListener("submit", async (event) => {
   }
   setClientMessage("Buscando seus agendamentos...");
   try {
-    const payload = await api(`/api/public/client-appointments?phone=${phone}`);
-    renderClientAppointments(payload.appointments || [], phone);
+    const accessToken = getPortalToken(phone);
+    const query = new URLSearchParams({ phone, access: accessToken });
+    const payload = await api(`/api/public/client-appointments?${query}`);
+    renderClientAppointments(payload.appointments || [], phone, accessToken);
     setClientMessage(payload.appointments?.length ? "Agendamentos encontrados." : "", true);
   } catch (error) {
     setClientMessage(error.message || "Não foi possível consultar sua agenda.");
@@ -942,6 +959,15 @@ clientLookupForm?.addEventListener("submit", async (event) => {
 });
 
 async function start() {
+  const params = new URLSearchParams(location.search);
+  const linkedPhone = phoneDigits(params.get("phone") || "");
+  const linkedAccess = params.get("access") || "";
+  if (linkedPhone && linkedAccess) {
+    storePortalToken(linkedPhone, linkedAccess);
+    const input = clientLookupForm?.querySelector("input[name='phone']");
+    if (input) input.value = linkedPhone;
+    history.replaceState({}, "", `${location.pathname}#minha-agenda`);
+  }
   await loadConfig();
   await Promise.all([loadCatalog(), loadConsentConfig()]);
   const payload = await api("/api/public/services");
@@ -950,6 +976,7 @@ async function start() {
   renderGalleryPlaceholders();
   observeOnce([workGallery, instagramGallery], loadGalleriesWhenNeeded, "700px");
   setupLazyVideos();
+  if (linkedPhone && linkedAccess) clientLookupForm?.requestSubmit();
 }
 
 start().catch((error) => setMessage(error.message));
