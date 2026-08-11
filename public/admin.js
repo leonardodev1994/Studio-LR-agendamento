@@ -30,6 +30,7 @@ const dashboardPendingList = document.querySelector("#dashboardPendingList");
 const adminServicesList = document.querySelector("#adminServicesList");
 const clientsList = document.querySelector("#clientsList");
 const clientSearch = document.querySelector("#clientSearch");
+const clientActionMessage = document.querySelector("#clientActionMessage");
 const financeSummary = document.querySelector("#financeSummary");
 const adminGalleryList = document.querySelector("#adminGalleryList");
 const configSummary = document.querySelector("#configSummary");
@@ -402,7 +403,7 @@ function renderClients() {
   }
   clientsList.innerHTML = `
     <table class="ops-table">
-      <thead><tr><th>Cliente</th><th>Telefone</th><th>Bairro</th><th>Visitas</th><th>Último</th><th>Próximo</th><th>Total gasto</th></tr></thead>
+      <thead><tr><th>Cliente</th><th>Telefone</th><th>Bairro</th><th>Visitas</th><th>Último</th><th>Próximo</th><th>Total gasto</th><th>Ações</th></tr></thead>
       <tbody>${clients.map((client) => `
         <tr>
           <td><button class="ops-table-link" type="button" data-client-history="${client.id}">${escapeHtml(client.name)}</button></td>
@@ -412,12 +413,34 @@ function renderClients() {
           <td>${client.last_visit ? formatDate(client.last_visit) : "-"}</td>
           <td>${client.next_visit ? escapeHtml(client.next_visit) : "-"}</td>
           <td>${escapeHtml(client.total_spent_label || "R$ 0,00")}</td>
+          <td>
+            ${Number(client.appointments_total || 0) === 0
+              ? `<button class="ops-button danger" type="button" data-delete-client="${client.id}" data-client-name="${escapeHtml(client.name)}">Excluir</button>`
+              : `<span title="Exclua os agendamentos vinculados antes de apagar o cadastro.">Com histórico</span>`}
+          </td>
         </tr>
       `).join("")}</tbody>
     </table>
   `;
   clientsList.querySelectorAll("[data-client-history]").forEach((button) => {
     button.addEventListener("click", () => openClientHistory(button.dataset.clientHistory));
+  });
+  clientsList.querySelectorAll("[data-delete-client]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const clientName = button.dataset.clientName || "esta cliente";
+      if (!confirm(`Excluir o cadastro de ${clientName}? Esta ação não pode ser desfeita.`)) return;
+      button.disabled = true;
+      try {
+        await api(`/api/admin/clients/${button.dataset.deleteClient}`, { method: "DELETE" });
+        clientActionMessage.textContent = "Cadastro excluído com sucesso.";
+        clientActionMessage.className = "ops-message success";
+        await loadClients();
+      } catch (error) {
+        clientActionMessage.textContent = error.message || "Não foi possível excluir o cadastro.";
+        clientActionMessage.className = "ops-message";
+        button.disabled = false;
+      }
+    });
   });
 }
 
