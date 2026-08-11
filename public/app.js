@@ -363,7 +363,7 @@ function selectService(serviceId) {
   });
   if (selectedServiceSummary && service) {
     selectedServiceName.textContent = service.name;
-    selectedServiceMeta.textContent = `${service.price_label} · ${service.duration_label}`;
+    selectedServiceMeta.textContent = `${service.price_label} · ${service.duration_label}${service.segment === "piercing" ? " · disponibilidade a confirmar" : ""}`;
     serviceQuickPickerList?.querySelectorAll("[data-quick-service]").forEach((button) => {
       const selected = String(button.dataset.quickService) === state.selectedServiceId;
       button.classList.toggle("selected", selected);
@@ -606,9 +606,10 @@ bookingForm.addEventListener("submit", async (event) => {
     const appointment = payload.appointment;
     setMessage(
       `
-        <strong>Agendamento solicitado com sucesso!</strong><br>
+        <strong>${String(appointment.service_key || "").startsWith("piercing-") ? "Pedido de disponibilidade enviado!" : "Agendamento solicitado com sucesso!"}</strong><br>
         ${appointment.service_name} em ${appointment.appointment_date} às ${appointment.appointment_time}.<br><br>
-        <a class="button primary" href="${appointment.whatsapp_url}" target="_blank" rel="noreferrer">Enviar confirmação pelo WhatsApp</a>
+        ${String(appointment.service_key || "").startsWith("piercing-") ? "A perfuração será confirmada pela profissional.<br><br>" : ""}
+        <a class="button primary" href="${appointment.whatsapp_url}" target="_blank" rel="noreferrer">${String(appointment.service_key || "").startsWith("piercing-") ? "Perguntar disponibilidade no WhatsApp" : "Enviar confirmação pelo WhatsApp"}</a>
       `,
       true,
     );
@@ -644,7 +645,7 @@ function renderClientAppointments(items, phone) {
       return `
         <article class="client-appointment-card">
           <div>
-            <span class="appointment-status">${item.status}</span>
+            <span class="appointment-status">${String(item.service_key || "").startsWith("piercing-") && item.status === "Pendente" ? "Aguardando disponibilidade" : item.status}</span>
             <h3>${item.service_name}</h3>
             <p>${item.appointment_date} às ${item.appointment_time}</p>
             <p>${item.client_name}${item.client_neighborhood ? ` · ${item.client_neighborhood}` : ""}</p>
