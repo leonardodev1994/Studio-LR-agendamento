@@ -180,7 +180,7 @@ function appointmentSummary(item) {
       <span class="ops-status ${statusClass(item.status)}">${item.reschedule_request_id ? "Reagendamento solicitado" : escapeHtml(item.status)}</span>
       <button class="ops-client-link" type="button" data-client-history="${item.client_id}">${escapeHtml(item.client_name)}</button>
       <p>${escapeHtml(item.client_phone)}${item.client_neighborhood ? ` · ${escapeHtml(item.client_neighborhood)}` : ""}</p>
-      <p>${escapeHtml(item.service_name)} · ${escapeHtml(item.price_label || moneyLabel(item.price_cents))} · ${escapeHtml(item.duration_minutes)} min</p>
+      <p>${escapeHtml(item.service_name)} · ${escapeHtml(item.price_label || moneyLabel(item.price_cents))}${Number(item.price_cents) !== Number(item.catalog_price_cents) ? ` <small>valor ajustado</small>` : ""} · ${escapeHtml(item.duration_minutes)} min</p>
       <p>${escapeHtml(item.notes || "Sem observação")}</p>
       <small>Origem: ${item.source === "admin" ? "Admin" : "Site"} · Criado em ${escapeHtml(String(item.created_at || "").slice(0, 16).replace("T", " "))}</small>
     </div>
@@ -189,7 +189,7 @@ function appointmentSummary(item) {
 
 function appointmentActions(item) {
   return `
-    <div class="ops-row-actions" data-actions-for="${item.id}">
+    <div class="ops-row-actions" data-actions-for="${item.id}" data-appointment-price="${(Number(item.price_cents || 0) / 100).toFixed(2).replace(".", ",")}">
       <button class="ops-button success" type="button" data-status="Confirmado">Confirmar</button>
       <button class="ops-button info" type="button" data-status="Concluído">Concluir</button>
       <button class="ops-button warn" type="button" data-status="Pendente">Pendente</button>
@@ -208,6 +208,7 @@ function appointmentEditForm(item) {
         <label>Telefone<input name="client_phone" value="${escapeHtml(item.client_phone)}" required></label>
         <label>Bairro<input name="client_neighborhood" value="${escapeHtml(item.client_neighborhood || "")}"></label>
         <label>Serviço<select name="service_id" required>${serviceOptions(item.service_id)}</select></label>
+        <label>Valor cobrado (R$)<input name="price" type="number" min="0" step="0.01" value="${(Number(item.price_cents || 0) / 100).toFixed(2)}" required></label>
         <label>Data<input name="date" type="date" value="${escapeHtml(item.appointment_date)}" required></label>
         <label>Horário<input name="time" type="time" value="${escapeHtml(item.appointment_time)}" required></label>
         <label>Status<select name="status">${statuses.map((status) => `<option value="${status}" ${status === item.status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
@@ -223,7 +224,15 @@ function bindAppointmentActions(container) {
   container.querySelectorAll("[data-actions-for] [data-status]").forEach((button) => {
     button.addEventListener("click", async () => {
       try {
-        await updateAppointment(button.closest("[data-actions-for]").dataset.actionsFor, { status: button.dataset.status });
+        const appointmentId = button.closest("[data-actions-for]").dataset.actionsFor;
+        const payload = { status: button.dataset.status };
+        if (button.dataset.status === "Concluído") {
+          const currentPrice = button.closest("[data-actions-for]")?.dataset.appointmentPrice || "0,00";
+          const finalPrice = prompt("Qual foi o valor final cobrado?", currentPrice);
+          if (finalPrice === null) return;
+          payload.price = finalPrice;
+        }
+        await updateAppointment(appointmentId, payload);
       } catch (error) {
         setActionMessage(error.message || "Não foi possível atualizar.");
       }
@@ -265,7 +274,7 @@ function renderTimeline(items) {
     return;
   }
   appointmentsList.innerHTML = items.map((item) => `
-    <article class="ops-appointment status-border-${statusClass(item.status)}">
+    <article class="ops-appointment status-border-${statusClass(item.status)}" data-appointment-id="${item.id}" data-appointment-price="${(Number(item.price_cents || 0) / 100).toFixed(2).replace(".", ",")}">
       <time>${escapeHtml(item.appointment_time)}</time>
       ${appointmentSummary(item)}
       ${appointmentActions(item)}
@@ -415,6 +424,14 @@ function refreshManualAppointmentOptions() {
   if (!timeInput.value) timeInput.value = new Date().toTimeString().slice(0, 5);
 }
 
+function updateManualAppointmentPrice() {
+  if (!manualAppointmentForm) return;
+  const serviceId = manualAppointmentForm.querySelector("select[name='service_id']")?.value;
+  const service = catalog.find((item) => Number(item.service_id) === Number(serviceId));
+  const priceInput = manualAppointmentForm.querySelector("input[name='price']");
+  if (priceInput && service) priceInput.value = (Number(service.price_cents || 0) / 100).toFixed(2);
+}
+
 function renderClients() {
   const term = String(clientSearch?.value || "").toLowerCase();
   const clients = clientsCache.filter((client) => [client.name, client.phone, client.neighborhood].join(" ").toLowerCase().includes(term));
@@ -554,7 +571,7 @@ async function loadSales() {
             <td>${formatDate(sale.appointment_date)}<small>${escapeHtml(sale.appointment_time)}</small></td>
             <td>${escapeHtml(sale.client_name)}<small>${escapeHtml(sale.client_phone)}</small></td>
             <td>${escapeHtml(sale.service_name)}</td>
-            <td><strong>${escapeHtml(sale.price_label)}</strong></td>
+            <td><strong>${escapeHtml(sale.price_label)}</strong>${sale.price_adjusted ? `<small>Preço padrão: ${escapeHtml(sale.catalog_price_label)}</small>` : ""}</td>
             <td><span class="ops-status status-${statusClass(sale.status)}">${escapeHtml(sale.status)}</span></td>
             <td>${escapeHtml(sale.source_label)}</td>
           </tr>
@@ -784,6 +801,7 @@ manualAppointmentForm?.addEventListener("submit", async (event) => {
     manualAppointmentMessage.className = "ops-message";
   }
 });
+manualAppointmentForm?.querySelector("select[name='service_id']")?.addEventListener("change", updateManualAppointmentPrice);
 salesFilters?.addEventListener("submit", async (event) => {
   event.preventDefault();
   await loadSales();
