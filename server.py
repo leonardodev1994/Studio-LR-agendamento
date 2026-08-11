@@ -263,7 +263,7 @@ def load_env():
 load_env()
 
 APP_ENV = os.environ.get("APP_ENV", "development")
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
 if not SECRET_KEY:
@@ -275,9 +275,24 @@ INSTAGRAM_URL = os.environ.get("INSTAGRAM_URL", "")
 HOST = os.environ.get("HOST", "0.0.0.0" if APP_ENV == "production" else "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8000"))
 
+CLOUD_ENV_MARKERS = (
+    "RAILWAY_ENVIRONMENT_ID",
+    "RAILWAY_PROJECT_ID",
+    "RENDER",
+    "DYNO",
+    "K_SERVICE",
+)
+
+
+def persistent_database_required(environ=None):
+    """Return True whenever the process is running as a production service."""
+    environment = os.environ if environ is None else environ
+    app_env = str(environment.get("APP_ENV", "development")).strip().lower()
+    return app_env == "production" or any(environment.get(key) for key in CLOUD_ENV_MARKERS)
+
 
 def validate_config():
-    if APP_ENV != "production":
+    if not persistent_database_required():
         return
     required = {
         "ADMIN_PASSWORD": ADMIN_PASSWORD,
@@ -289,19 +304,42 @@ def validate_config():
     missing = [key for key, value in required.items() if not value]
     if missing:
         raise RuntimeError(f"Configure as variáveis de produção: {', '.join(missing)}")
+    if not DATABASE_URL.startswith(("postgres://", "postgresql://")):
+        raise RuntimeError(
+            "DATABASE_URL precisa ser uma connection string PostgreSQL válida "
+            "(postgres:// ou postgresql://)."
+        )
 
 
 class Database:
     def __init__(self, url=""):
         self.url = url
-        # Em produção, FORÇA uso de PostgreSQL
-        if not url and os.environ.get("APP_ENV") == "production":
-            raise RuntimeError(
-                "DATABASE_URL não configurada em produção. "
-                "Configure o Supabase PostgreSQL para persistência de dados."
-            )
         self.kind = "postgres" if url.startswith(("postgres://", "postgresql://")) else "sqlite"
         self.driver = None
+
+        # --- CORREÇÃO 1: avisar claramente qual banco está sendo usado, em vez
+        # de cair silenciosamente para SQLite sem que ninguém perceba. ---
+        if self.kind == "sqlite":
+            if url:
+                print(
+                    "[AVISO] DATABASE_URL foi definido mas não começa com "
+                    "'postgres://' ou 'postgresql://' — usando SQLite local "
+                    f"em {DB_PATH}. Valor recebido (mascarado): "
+                    f"{url[:12]}...{url[-6:] if len(url) > 18 else ''}"
+                )
+            else:
+                print(
+                    "[AVISO] DATABASE_URL não está definida — usando SQLite "
+                    f"local em {DB_PATH}. Em produção (Render, Railway, etc.) "
+                    "esse arquivo é apagado a cada redeploy/restart, então os "
+                    "agendamentos salvos vão 'desaparecer'. Configure "
+                    "DATABASE_URL nas variáveis de ambiente da hospedagem "
+                    "para usar o Supabase de verdade."
+                )
+        else:
+            masked = re.sub(r"://([^:]+):[^@]+@", r"://\1:****@", url)
+            print(f"[INFO] Usando banco Postgres/Supabase: {masked}")
+
         if self.kind == "postgres":
             try:
                 import psycopg
@@ -329,14 +367,19 @@ class Database:
             conn.execute("PRAGMA foreign_keys = ON")
             return conn
         if self.driver == "psycopg":
-            conn = self.module.connect(self.url, row_factory=self.module.rows.dict_row)
-            # Configura timezone para o servidor
-            conn.execute("SET session_replication_role = replica")
-            return conn
-        conn = self.module.connect(self.url, cursor_factory=self.extras.RealDictCursor)
-        # Configura timezone para o servidor
-        conn.cursor().execute("SET session_replication_role = replica")
-        return conn
+            # --- CORREÇÃO 2: prepare_threshold=None desativa prepared
+            # statements no psycopg3. Isso é obrigatório quando a
+            # DATABASE_URL usa o "Transaction Pooler" do Supabase (porta
+            # 6543/pgbouncer), que não suporta prepared statements —
+            # sem isso, os INSERTs podem falhar de forma silenciosa ou
+            # intermitente. Também é seguro deixar com o Session
+            # Pooler/conexão direta. ---
+            return self.module.connect(
+                self.url,
+                row_factory=self.module.rows.dict_row,
+                prepare_threshold=None,
+            )
+        return self.module.connect(self.url, cursor_factory=self.extras.RealDictCursor)
 
     def sql(self, statement):
         if self.kind == "postgres":
@@ -1241,6 +1284,12 @@ def parse_json(handler):
     return json.loads(handler.rfile.read(length).decode("utf-8"))
 
 
+def json_default(value):
+    if isinstance(value, (dt.datetime, dt.date, dt.time)):
+        return value.isoformat()
+    raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
+
+
 def parse_multipart_upload(handler):
     content_type = handler.headers.get("Content-Type", "")
     if "multipart/form-data" not in content_type or "boundary=" not in content_type:
@@ -1328,19 +1377,6 @@ def parse_date(value):
 def is_past_date(value):
     parsed = parse_date(value)
     return parsed is not None and parsed < dt.date.today()
-
-
-def normalize_date(date_string):
-    """Normaliza data de string ISO para formato consistente YYYY-MM-DD.
-    Garante que datas são sempre interpretadas em timezone local do servidor."""
-    try:
-        parsed = dt.datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-        return parsed.date().isoformat()
-    except (ValueError, AttributeError):
-        try:
-            return dt.date.fromisoformat(date_string).isoformat()
-        except (ValueError, TypeError):
-            return None
 
 
 def sign(value):
@@ -1545,7 +1581,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def json(self, payload, status=200):
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        body = json.dumps(payload, ensure_ascii=False, default=json_default).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -1593,7 +1629,17 @@ class Handler(SimpleHTTPRequestHandler):
     def route_public_get(self, parsed):
         query = parse_qs(parsed.query)
         if parsed.path == "/api/health":
-            return self.json({"ok": True, "app_env": APP_ENV, "database": database.kind})
+            # --- CORREÇÃO 3: expõe explicitamente se a persistência é
+            # durável (Postgres/Supabase) ou volátil (SQLite local), para
+            # facilitar o diagnóstico sem precisar olhar os logs. ---
+            return self.json(
+                {
+                    "ok": True,
+                    "app_env": APP_ENV,
+                    "database": database.kind,
+                    "persistent_storage": database.kind == "postgres",
+                }
+            )
         if parsed.path in ["/api/config", "/api/public/config"]:
             return self.json(
                     {
@@ -1763,12 +1809,9 @@ class Handler(SimpleHTTPRequestHandler):
             client_name = str(payload["name"]).strip()
             phone = phone_digits(payload["phone"])
             neighborhood = str(payload.get("neighborhood", "")).strip()
-            date_value = normalize_date(str(payload["date"]).strip())
+            date_value = str(payload["date"]).strip()
             time_value = str(payload["time"]).strip()
             notes = str(payload.get("notes", "")).strip()
-            
-            if not date_value:
-                return self.bad("Informe uma data válida.")
 
             if not client_name:
                 return self.bad("Informe seu nome.")
@@ -1862,7 +1905,7 @@ class Handler(SimpleHTTPRequestHandler):
             except (TypeError, ValueError):
                 return self.bad("Agendamento inválido.")
             phone = phone_digits(payload.get("phone", ""))
-            requested_date = normalize_date(str(payload.get("requested_date", "")).strip()) if payload.get("requested_date", "").strip() else ""
+            requested_date = str(payload.get("requested_date", "")).strip()
             requested_time = str(payload.get("requested_time", "")).strip()
             message = str(payload.get("message", "")).strip()
 
@@ -2012,9 +2055,9 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/admin/blocked-days":
             if not self.require_auth():
                 return
-            date_value = normalize_date(payload.get("date", ""))
+            date_value = payload.get("date", "")
             if not date_value:
-                return self.bad("Informe uma data válida.")
+                return self.bad("Informe a data.")
             conn = db()
             execute(
                 conn,
@@ -2033,10 +2076,10 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/admin/blocked-slots":
             if not self.require_auth():
                 return
-            date_value = normalize_date(str(payload.get("date", "")).strip())
+            date_value = str(payload.get("date", "")).strip()
             time_value = str(payload.get("time", "")).strip()
             if not date_value or not time_value:
-                return self.bad("Informe data e horário válidos.")
+                return self.bad("Informe data e horário.")
             if not parse_date(date_value):
                 return self.bad("Informe uma data válida.")
             conn = db()
@@ -2057,7 +2100,7 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/admin/extra-slots":
             if not self.require_auth():
                 return
-            date_value = normalize_date(payload.get("date", ""))
+            date_value = payload.get("date", "")
             time_value = payload.get("time", "")
             if not date_value or not time_value:
                 return self.bad("Informe data e horário.")
@@ -2258,7 +2301,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.bad("Status inválido.")
 
                 service_id = int(payload.get("service_id", current["service_id"]))
-                date_value = normalize_date(str(payload.get("date", current["appointment_date"])).strip())
+                date_value = str(payload.get("date", current["appointment_date"])).strip()
                 time_value = str(payload.get("time", current["appointment_time"])).strip()
                 notes = str(payload.get("notes", current["notes"] or "")).strip()
                 client_name = str(payload.get("client_name", current["client_name"])).strip()
@@ -2269,7 +2312,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.bad("Informe o nome da cliente.")
                 if not valid_phone(client_phone):
                     return self.bad("Informe um WhatsApp válido com DDD.")
-                if not date_value or not parse_date(date_value):
+                if not parse_date(date_value):
                     return self.bad("Informe uma data válida.")
                 if not time_value:
                     return self.bad("Informe um horário.")
@@ -2355,10 +2398,6 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     validate_config()
     init_db()
-    print(f"🗄️  Database: {database.kind.upper()}")
-    if database.kind == "postgres":
-        print(f"📍 Supabase: {database.url.split('@')[1] if '@' in database.url else 'Conectado'}")
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"🎨 Studio LR rodando em http://{HOST}:{PORT}")
-    print(f"🔒 Ambiente: {APP_ENV}")
+    print(f"Studio LR rodando em http://{HOST}:{PORT}")
     server.serve_forever()
