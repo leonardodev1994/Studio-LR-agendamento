@@ -77,7 +77,7 @@ python3 server.py
 
 Em desenvolvimento, deixe `DATABASE_URL` vazio. O sistema cria e usa `studio_lr.sqlite3`.
 
-Em producao, configure sempre `DATABASE_URL` com Supabase/PostgreSQL. O Render usa disco temporario; se o app rodar com SQLite em producao, clientes e agendamentos podem sumir em deploys/restarts. Com `APP_ENV=production`, o servidor agora exige `DATABASE_URL` para proteger esses dados.
+Em producao, configure sempre `DATABASE_URL` com Supabase/PostgreSQL. Railway, Render e plataformas similares usam disco temporario; se o app rodar com SQLite em producao, clientes e agendamentos podem sumir em deploys/restarts. O servidor exige `DATABASE_URL` quando `APP_ENV=production` e tambem detecta automaticamente Railway, Render, Heroku e Cloud Run, evitando que uma configuracao esquecida aceite agendamentos em armazenamento temporario.
 
 ## Banco de dados
 
@@ -85,7 +85,7 @@ Quando `DATABASE_URL` esta vazio, o servidor usa SQLite local somente para desen
 
 Quando `DATABASE_URL` esta preenchido com uma URL `postgres://` ou `postgresql://`, o servidor usa PostgreSQL/Supabase.
 
-Ao iniciar, o servidor cria automaticamente as tabelas se elas nao existirem:
+Ao iniciar, o servidor preserva a inicialização existente das tabelas operacionais:
 
 - `services`
 - `clients`
@@ -95,6 +95,12 @@ Ao iniciar, o servidor cria automaticamente as tabelas se elas nao existirem:
 - `extra_slots`
 - `settings`
 - `reschedule_requests`
+
+No SQLite de desenvolvimento, o schema de Body Piercing é criado localmente
+por `init_db()`. No PostgreSQL/Supabase, a migração aditiva de Body Piercing é
+deliberadamente manual: revise e execute
+`migrations/20260811_body_piercing.sql` antes do deploy. A inicialização apenas
+verifica esse schema e não troca a conexão de produção por SQLite.
 
 O status do agendamento fica protegido por `CHECK` na tabela `appointments`:
 

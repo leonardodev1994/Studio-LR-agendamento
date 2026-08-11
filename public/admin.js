@@ -41,12 +41,19 @@ const salesMessage = document.querySelector("#salesMessage");
 const adminGalleryList = document.querySelector("#adminGalleryList");
 const configSummary = document.querySelector("#configSummary");
 const opsTodayLabel = document.querySelector("#opsTodayLabel");
+const piercingConsentsList = document.querySelector("#piercingConsentsList");
+const piercingConfigForm = document.querySelector("#piercingConfigForm");
+const piercingServicesPolicy = document.querySelector("#piercingServicesPolicy");
+const aftercareGeneralFields = document.querySelector("#aftercareGeneralFields");
+const aftercareSpecificFields = document.querySelector("#aftercareSpecificFields");
+const piercingConfigMessage = document.querySelector("#piercingConfigMessage");
 
 const statuses = ["Pendente", "Confirmado", "Cancelado", "Concluído"];
 const weekdays = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 let catalog = [];
 let clientsCache = [];
 let currentCalendarMonth = todayIso().slice(0, 7);
+let piercingConfigCache = null;
 
 function todayIso() {
   const today = new Date();
@@ -183,6 +190,7 @@ function appointmentSummary(item) {
       <p>${escapeHtml(item.client_phone)}${item.client_neighborhood ? ` · ${escapeHtml(item.client_neighborhood)}` : ""}</p>
       <p>${escapeHtml(item.service_name)} · ${escapeHtml(item.price_label || moneyLabel(item.price_cents))}${Number(item.price_cents) !== Number(item.catalog_price_cents) ? ` <small>valor ajustado</small>` : ""} · ${escapeHtml(item.duration_minutes)} min</p>
       <p>${escapeHtml(item.notes || "Sem observação")}</p>
+      ${String(item.service_key || "").startsWith("piercing-") ? `<p><strong>${item.consent_id ? `✓ Termo aceito · ${item.consent_is_minor ? "menor com responsável" : "maior"}` : "Termo não registrado"}</strong></p>` : ""}
       <small>Origem: ${item.source === "admin" ? "Admin" : "Site"} · Criado em ${escapeHtml(String(item.created_at || "").slice(0, 16).replace("T", " "))}</small>
     </div>
   `;
@@ -727,6 +735,90 @@ async function loadAdminGallery() {
   }));
 }
 
+function piercingField(key, value, rows = 5) {
+  return `<label>${escapeHtml(key)}<textarea data-care-key="${escapeHtml(key)}" rows="${rows}">${escapeHtml(value || "")}</textarea></label>`;
+}
+
+async function openConsentRecord(id) {
+  const payload = await api(`/api/admin/piercing-consents/${id}`);
+  const item = payload.consent;
+  let modal = document.querySelector("#opsModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "opsModal";
+    modal.className = "ops-modal hidden";
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <section class="ops-modal-panel consent-admin-detail">
+      <button class="ops-modal-close" type="button" data-close-modal>Fechar</button>
+      <span>Termo aceito · ${escapeHtml(item.term_version)}</span>
+      <h2>${escapeHtml(item.client_name)} · ${escapeHtml(item.service_name)}</h2>
+      <div class="ops-metrics compact">
+        ${metricCard("Agendamento", `${formatDate(item.appointment_date)} ${item.appointment_time}`)}
+        ${metricCard("Aceite", String(item.accepted_at || "").slice(0, 19).replace("T", " "))}
+        ${metricCard("Idade no aceite", `${item.client_age} anos · ${item.is_minor ? "menor" : "maior"}`)}
+        ${metricCard("Status", item.status)}
+      </div>
+      ${item.is_minor ? `<h3>Responsável legal</h3><p>${escapeHtml(item.guardian_name)} · CPF ${escapeHtml(item.guardian_cpf)} · ${escapeHtml(item.guardian_phone)} · ${escapeHtml(item.guardian_relationship)}</p><h3>Política ${escapeHtml(item.minor_policy_version)}</h3><div class="admin-term-content">${escapeHtml(item.minor_policy_content).replaceAll("\n", "<br>")}</div>` : ""}
+      <h3>Termo de consentimento aceito</h3>
+      <div class="admin-term-content">${escapeHtml(item.term_content).replaceAll("\n", "<br>")}</div>
+      <small>SHA-256: ${escapeHtml(item.term_hash)}</small>
+    </section>`;
+  modal.classList.remove("hidden");
+  modal.querySelector("[data-close-modal]").addEventListener("click", () => modal.classList.add("hidden"));
+  modal.addEventListener("click", (event) => { if (event.target === modal) modal.classList.add("hidden"); }, { once: true });
+}
+
+async function loadPiercingAdmin() {
+  if (!piercingConfigForm) return;
+  const [consentPayload, configPayload] = await Promise.all([
+    api("/api/admin/piercing-consents"),
+    api("/api/admin/piercing-config"),
+  ]);
+  piercingConfigCache = configPayload;
+  const policy = configPayload.policy;
+  piercingConfigForm.elements.minimum_age.value = policy.minimum_age;
+  piercingConfigForm.elements.document_check.checked = policy.document_check;
+  piercingConfigForm.elements.term_version.value = policy.term_version;
+  piercingConfigForm.elements.term_content.value = policy.term_content;
+  piercingConfigForm.elements.policy_version.value = policy.policy_version;
+  piercingConfigForm.elements.policy_content.value = policy.policy_content;
+  piercingServicesPolicy.innerHTML = configPayload.services.map((service) => `
+    <div class="ops-week-row" data-piercing-service="${service.id}">
+      <strong>${escapeHtml(service.name)}</strong>
+      <select data-minor-policy aria-label="Política para ${escapeHtml(service.name)}">
+        <option value="guardian_required" ${service.minor_policy === "guardian_required" ? "selected" : ""}>Menor com responsável</option>
+        <option value="minors_allowed" ${service.minor_policy === "minors_allowed" ? "selected" : ""}>Menor permitido</option>
+        <option value="adult_only" ${service.minor_policy === "adult_only" ? "selected" : ""}>Somente 18+</option>
+      </select>
+      <input data-aftercare-category value="${escapeHtml(service.aftercare_category)}" aria-label="Categoria de cuidados para ${escapeHtml(service.name)}" required>
+    </div>`).join("");
+  const generalLabels = {
+    intro: "Introdução", hygiene: "Higienização", avoid: "O que evitar",
+    hygiene_hands: "Higienização · mãos", hygiene_saline: "Higienização · solução salina",
+    hygiene_jewelry: "Higienização · joia", hygiene_dry: "Higienização · secagem",
+    normal: "O que pode ocorrer", alert: "Sinais de alerta",
+  };
+  aftercareGeneralFields.innerHTML = Object.entries(configPayload.aftercare.general)
+    .map(([key, value]) => piercingField(generalLabels[key] || key, value, key === "intro" ? 3 : 6).replace("data-care-key=", `data-general-key="${key}" data-care-key=`)).join("");
+  aftercareSpecificFields.innerHTML = Object.entries(configPayload.aftercare.specific)
+    .map(([key, value]) => piercingField(key, value, 5).replace("data-care-key=", `data-specific-key="${key}" data-care-key=`)).join("");
+  const consents = consentPayload.consents || [];
+  piercingConsentsList.innerHTML = consents.length ? `
+    <table class="ops-table"><thead><tr><th>Cliente</th><th>Serviço</th><th>Agendamento</th><th>Aceite</th><th>Perfil</th><th>Versão</th><th></th></tr></thead>
+    <tbody>${consents.map((item) => `<tr>
+      <td>${escapeHtml(item.client_name)}${item.guardian_name ? `<small>Resp.: ${escapeHtml(item.guardian_name)} · ${escapeHtml(item.guardian_cpf)}</small>` : ""}</td>
+      <td>${escapeHtml(item.service_name)}</td><td>${formatDate(item.appointment_date)} ${escapeHtml(item.appointment_time)}</td>
+      <td>${escapeHtml(String(item.accepted_at || "").slice(0, 16).replace("T", " "))}</td>
+      <td>${item.is_minor ? "Menor" : "Maior"}</td><td>${escapeHtml(item.term_version)}</td>
+      <td><button class="ops-button ghost" type="button" data-consent-detail="${item.id}">Ver termo aceito</button></td>
+    </tr>`).join("")}</tbody></table>` : `<p class="ops-empty">Nenhum termo registrado.</p>`;
+  piercingConsentsList.querySelectorAll("[data-consent-detail]").forEach((button) => {
+    button.addEventListener("click", () => openConsentRecord(button.dataset.consentDetail));
+  });
+}
+
 async function loadConfig() {
   const payload = await api("/api/admin/config");
   const config = payload.config;
@@ -748,6 +840,7 @@ async function loadAdminModules() {
     loadSales(),
     loadSettings(),
     loadAdminGallery(),
+    loadPiercingAdmin(),
     loadConfig(),
   ]);
 }
@@ -804,6 +897,43 @@ manualAppointmentForm?.addEventListener("submit", async (event) => {
   }
 });
 manualAppointmentForm?.querySelector("select[name='service_id']")?.addEventListener("change", updateManualAppointmentPrice);
+piercingConfigForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  piercingConfigMessage.textContent = "Salvando configurações...";
+  const data = Object.fromEntries(new FormData(piercingConfigForm));
+  const general = {};
+  aftercareGeneralFields.querySelectorAll("[data-general-key]").forEach((field) => { general[field.dataset.generalKey] = field.value.trim(); });
+  const specific = {};
+  aftercareSpecificFields.querySelectorAll("[data-specific-key]").forEach((field) => { specific[field.dataset.specificKey] = field.value.trim(); });
+  const services = Array.from(piercingServicesPolicy.querySelectorAll("[data-piercing-service]")).map((row) => ({
+    id: row.dataset.piercingService,
+    minor_policy: row.querySelector("[data-minor-policy]").value,
+    aftercare_category: row.querySelector("[data-aftercare-category]").value.trim(),
+  }));
+  try {
+    await api("/api/admin/piercing-config", {
+      method: "PATCH",
+      body: JSON.stringify({
+        policy: {
+          minimum_age: data.minimum_age,
+          document_check: Boolean(data.document_check),
+          term_version: data.term_version,
+          term_content: data.term_content,
+          policy_version: data.policy_version,
+          policy_content: data.policy_content,
+        },
+        aftercare: { general, specific },
+        services,
+      }),
+    });
+    piercingConfigMessage.textContent = "Configurações de Body Piercing atualizadas.";
+    piercingConfigMessage.className = "ops-message success";
+    await Promise.all([loadPiercingAdmin(), loadAdminServices()]);
+  } catch (error) {
+    piercingConfigMessage.textContent = error.message || "Não foi possível salvar.";
+    piercingConfigMessage.className = "ops-message";
+  }
+});
 salesFilters?.addEventListener("submit", async (event) => {
   event.preventDefault();
   await loadSales();

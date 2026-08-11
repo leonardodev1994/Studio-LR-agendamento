@@ -273,6 +273,64 @@ PUBLIC_REVIEWS = [
     },
 ]
 CATALOG_SEED_VERSION = "2026-06-tabela-valores-v1"
+CONSENT_TERM_VERSION = "2026-08-v1"
+MINOR_POLICY_VERSION = "2026-08-v1"
+CONSENT_TERM_TEXT = """TERMO DE CONSENTIMENTO PARA BODY PIERCING
+
+Identificação e procedimento
+Declaro que os meus dados e, quando aplicável, os dados do responsável legal foram informados de forma verdadeira. Solicito voluntariamente a realização do procedimento de body piercing escolhido no agendamento, na região indicada, ciente de que a reserva não representa aprovação automática nem confirmação de que o procedimento será realizado.
+
+Avaliação profissional
+Compreendo que a realização, o posicionamento e a joia inicial dependem de avaliação profissional da anatomia e das condições locais no atendimento. A profissional poderá recusar o procedimento ou propor alteração de posição ou joia quando a anatomia não for adequada, houver contraindicação, documentação insuficiente, ausência do responsável legal exigido ou outra condição incompatível com um atendimento responsável.
+
+Riscos e cicatrização
+Fui informado(a) de que perfurações corporais modificam o tecido e podem apresentar sensibilidade, inchaço, sangramento, irritação, cicatrização prolongada, migração ou rejeição quando aplicável, formação de cicatriz e infecção. Cada organismo cicatriza de maneira própria e o aspecto externo pode melhorar antes de o interior estar completamente cicatrizado. Nenhum resultado ou prazo de cicatrização é garantido.
+
+Cuidados posteriores
+Recebi acesso às orientações gerais e específicas de cuidados pós-perfuração. Comprometo-me a manter as mãos limpas antes de tocar a região, evitar manipulação desnecessária e buscar orientação da profissional diante de dúvidas. Em caso de dor intensa ou crescente, calor excessivo, vermelhidão que se espalha, secreção purulenta, febre ou outros sinais preocupantes, procurarei avaliação de um profissional de saúde. Não retirarei a joia por conta própria diante de suspeita de infecção sem orientação profissional.
+
+Autorização
+Tive oportunidade de ler este termo e esclarecer dúvidas. Confirmo que compreendi as informações, a necessidade de avaliação presencial e os cuidados posteriores, e autorizo a realização do procedimento selecionado caso ele seja considerado adequado pela profissional no atendimento."""
+MINOR_POLICY_TEXT = """Para procedimentos de body piercing em menores, é necessária autorização e presença do responsável legal, além da documentação exigida no atendimento. Os documentos originais do menor e do responsável legal poderão ser solicitados para conferência. A reserva permanece sujeita à avaliação profissional, à política do serviço escolhido e à conferência documental."""
+AFTERCARE_GENERAL = {
+    "intro": "Cada organismo possui seu próprio processo de cicatrização. Siga as orientações recebidas durante o atendimento e evite manipular desnecessariamente sua joia.",
+    "hygiene": "Uma rotina delicada e consistente ajuda a evitar irritações durante a cicatrização.",
+    "hygiene_hands": "Lave bem as mãos antes de tocar ou higienizar a perfuração.",
+    "hygiene_saline": "Use solução salina estéril 0,9% apropriada para lavagem de feridas, sem aditivos.",
+    "hygiene_jewelry": "Não gire, rode ou movimente a joia durante a limpeza ou cicatrização.",
+    "hygiene_dry": "Quando necessário, seque delicadamente com material descartável limpo, sem atrito.",
+    "avoid": "Evite álcool, água oxigenada, iodo, produtos agressivos, pomadas sem orientação, cosméticos sobre a perfuração, manipulação, girar a joia, atrito, pressão e limpeza excessiva. Não retire a joia por conta própria diante de suspeita de problema. Durante a cicatrização, evite submergir a região em piscinas, banheiras ou hidromassagens, lagos, rios e outras águas compartilhadas potencialmente contaminadas.",
+    "normal": "Principalmente no início, podem ocorrer sensibilidade, leve inchaço, discreto sangramento, vermelhidão localizada e secreção clara ou esbranquiçada que forma pequenas crostas. A aparência isolada não permite diagnóstico pelo site.",
+    "alert": "Se houver piora importante, dor intensa ou crescente, calor excessivo, vermelhidão que se espalha, secreção purulenta, febre ou outros sintomas preocupantes, procure avaliação de um profissional de saúde. Não retire a joia por conta própria diante de suspeita de infecção sem orientação profissional.",
+}
+AFTERCARE_SPECIFIC = {
+    "lobulo": "Mantenha fronhas e roupas de cama limpas. Evite pressão direta e mantenha limpos objetos que encostem na região.",
+    "cartilagem": "Evite dormir diretamente sobre a perfuração durante a cicatrização. Mantenha limpos telefone, fones, óculos, capacetes e outros objetos que possam encostar na orelha. Tenha cuidado com cabelo, roupas e acessórios.",
+    "nostril": "Evite cosméticos, cremes e maquiagem diretamente sobre a perfuração. Tenha cuidado com toalhas, roupas e movimentos ao assoar o nariz.",
+    "septo": "Evite movimentar ou esconder a joia repetidamente durante a cicatrização. Higienize as mãos antes de qualquer contato necessário com a região.",
+    "sobrancelha": "Evite maquiagem e produtos de pele sobre a região, além de atrito com toalhas, roupas, capacetes ou acessórios.",
+    "oral": "Mantenha a higiene oral conforme a orientação recebida no atendimento. Evite traumas, brincadeiras com a joia e contato desnecessário durante a cicatrização; alterações dentais ou gengivais exigem avaliação profissional.",
+    "umbigo": "Evite roupas apertadas, cintos e atividades que provoquem pressão ou atrito repetido. Proteja a região de impactos sem abafá-la.",
+    "mamilo": "Roupas limpas e confortáveis podem ajudar a proteger a região. Evite pressão, atrito e contato com fluidos corporais durante a cicatrização.",
+    "surface": "Evite pressão, enroscos e cosméticos sobre a região. Perfurações de superfície podem apresentar migração ou rejeição e devem ser acompanhadas profissionalmente.",
+    "microdermal": "Evite impactos, enroscos e cosméticos sobre a âncora. Mantenha a área sob observação e procure a profissional se houver mudança de posição ou irritação persistente.",
+    "industrial": "Além dos cuidados de cartilagem, evite qualquer pressão que altere o ângulo das duas perfurações. Não troque a joia de conexão sem avaliação profissional.",
+    "geral": "Siga os cuidados gerais e as orientações personalizadas recebidas no atendimento.",
+}
+PIERCING_AFTERCARE_CATEGORIES = {
+    "piercing-lobulo": "lobulo", "piercing-upper-lobe": "lobulo",
+    "piercing-helix": "cartilagem", "piercing-forward-helix": "cartilagem",
+    "piercing-flat": "cartilagem", "piercing-tragus": "cartilagem",
+    "piercing-antitragus": "cartilagem", "piercing-conch": "cartilagem",
+    "piercing-rook": "cartilagem", "piercing-daith": "cartilagem",
+    "piercing-snug": "cartilagem", "piercing-orbital": "cartilagem",
+    "piercing-industrial": "industrial", "piercing-nostril": "nostril",
+    "piercing-septo": "septo", "piercing-sobrancelha": "sobrancelha",
+    "piercing-bridge": "surface", "piercing-labret": "oral",
+    "piercing-medusa": "oral", "piercing-umbigo": "umbigo",
+    "piercing-mamilo": "mamilo", "piercing-surface": "surface",
+    "piercing-microdermal": "microdermal", "piercing-avaliacao": "geral",
+}
 
 
 def load_env():
@@ -500,13 +558,16 @@ class Database:
             price_cents INTEGER NOT NULL,
             duration_minutes INTEGER NOT NULL DEFAULT 90,
             description TEXT NOT NULL DEFAULT '',
-            active INTEGER NOT NULL DEFAULT 1
+            active INTEGER NOT NULL DEFAULT 1,
+            minor_policy TEXT NOT NULL DEFAULT 'not_applicable',
+            aftercare_category TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             phone TEXT NOT NULL,
             neighborhood TEXT NOT NULL DEFAULT '',
+            birth_date TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(phone)
         );
@@ -567,6 +628,32 @@ class Database:
             status TEXT NOT NULL DEFAULT 'Pendente'
                 CHECK(status IN ('Pendente', 'Resolvida', 'Cancelada')),
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS piercing_consents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            appointment_id INTEGER NOT NULL UNIQUE REFERENCES appointments(id),
+            client_id INTEGER NOT NULL REFERENCES clients(id),
+            client_name TEXT NOT NULL,
+            client_birth_date TEXT NOT NULL,
+            client_age INTEGER NOT NULL,
+            is_minor INTEGER NOT NULL DEFAULT 0,
+            service_id INTEGER NOT NULL REFERENCES services(id),
+            service_name TEXT NOT NULL,
+            service_key TEXT NOT NULL,
+            term_version TEXT NOT NULL,
+            term_content TEXT NOT NULL,
+            term_hash TEXT NOT NULL,
+            minor_policy_version TEXT NOT NULL DEFAULT '',
+            minor_policy_content TEXT NOT NULL DEFAULT '',
+            guardian_name TEXT NOT NULL DEFAULT '',
+            guardian_cpf TEXT NOT NULL DEFAULT '',
+            guardian_birth_date TEXT NOT NULL DEFAULT '',
+            guardian_phone TEXT NOT NULL DEFAULT '',
+            guardian_relationship TEXT NOT NULL DEFAULT '',
+            accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            status TEXT NOT NULL DEFAULT 'Aceito',
+            ip_address TEXT NOT NULL DEFAULT '',
+            user_agent TEXT NOT NULL DEFAULT ''
         );
         """
 
@@ -676,6 +763,10 @@ def run_migrations(conn):
         }
         if "catalog_key" not in service_columns:
             execute(conn, "ALTER TABLE services ADD COLUMN catalog_key TEXT")
+        if "minor_policy" not in service_columns:
+            execute(conn, "ALTER TABLE services ADD COLUMN minor_policy TEXT NOT NULL DEFAULT 'not_applicable'")
+        if "aftercare_category" not in service_columns:
+            execute(conn, "ALTER TABLE services ADD COLUMN aftercare_category TEXT NOT NULL DEFAULT ''")
         execute(conn, "CREATE UNIQUE INDEX IF NOT EXISTS idx_services_catalog_key ON services(catalog_key)")
         client_columns = {
             row["name"]
@@ -683,6 +774,8 @@ def run_migrations(conn):
         }
         if "neighborhood" not in client_columns:
             execute(conn, "ALTER TABLE clients ADD COLUMN neighborhood TEXT NOT NULL DEFAULT ''")
+        if "birth_date" not in client_columns:
+            execute(conn, "ALTER TABLE clients ADD COLUMN birth_date TEXT NOT NULL DEFAULT ''")
         appointment_columns = {
             row["name"]
             for row in execute(conn, "PRAGMA table_info(appointments)").fetchall()
@@ -713,6 +806,37 @@ def run_migrations(conn):
             )
             """,
         )
+        execute(
+            conn,
+            """
+            CREATE TABLE IF NOT EXISTS piercing_consents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                appointment_id INTEGER NOT NULL UNIQUE REFERENCES appointments(id),
+                client_id INTEGER NOT NULL REFERENCES clients(id),
+                client_name TEXT NOT NULL,
+                client_birth_date TEXT NOT NULL,
+                client_age INTEGER NOT NULL,
+                is_minor INTEGER NOT NULL DEFAULT 0,
+                service_id INTEGER NOT NULL REFERENCES services(id),
+                service_name TEXT NOT NULL,
+                service_key TEXT NOT NULL,
+                term_version TEXT NOT NULL,
+                term_content TEXT NOT NULL,
+                term_hash TEXT NOT NULL,
+                minor_policy_version TEXT NOT NULL DEFAULT '',
+                minor_policy_content TEXT NOT NULL DEFAULT '',
+                guardian_name TEXT NOT NULL DEFAULT '',
+                guardian_cpf TEXT NOT NULL DEFAULT '',
+                guardian_birth_date TEXT NOT NULL DEFAULT '',
+                guardian_phone TEXT NOT NULL DEFAULT '',
+                guardian_relationship TEXT NOT NULL DEFAULT '',
+                accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                status TEXT NOT NULL DEFAULT 'Aceito',
+                ip_address TEXT NOT NULL DEFAULT '',
+                user_agent TEXT NOT NULL DEFAULT ''
+            )
+            """,
+        )
         return
 
     with conn.cursor() as cursor:
@@ -739,6 +863,45 @@ def run_migrations(conn):
                 UNIQUE(slot_date, slot_time)
             )
             """
+        )
+
+
+def validate_body_piercing_schema(conn):
+    """Fail closed in PostgreSQL until the reviewed additive migration is applied."""
+    if database.kind != "postgres":
+        return
+    required_columns = {
+        "services": {"minor_policy", "aftercare_category"},
+        "clients": {"birth_date"},
+    }
+    rows = execute(
+        conn,
+        """
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name IN ('services', 'clients')
+        """,
+    ).fetchall()
+    available = {}
+    for row in rows:
+        available.setdefault(row["table_name"], set()).add(row["column_name"])
+    missing = [
+        f"{table}.{column}"
+        for table, columns in required_columns.items()
+        for column in sorted(columns - available.get(table, set()))
+    ]
+    consent_table = execute(
+        conn,
+        "SELECT to_regclass(current_schema() || '.piercing_consents') AS table_name",
+    ).fetchone()
+    if not consent_table or not consent_table["table_name"]:
+        missing.append("piercing_consents")
+    if missing:
+        raise RuntimeError(
+            "Schema de Body Piercing ainda não aplicado no PostgreSQL/Supabase. "
+            "Execute manualmente migrations/20260811_body_piercing.sql antes do deploy. "
+            f"Itens ausentes: {', '.join(missing)}"
         )
 
 
@@ -833,6 +996,18 @@ def sync_catalog_services(conn):
         ("piercing-%",),
     )
 
+    for service_key, category in PIERCING_AFTERCARE_CATEGORIES.items():
+        initial_policy = "adult_only" if service_key == "piercing-mamilo" else "guardian_required"
+        execute(
+            conn,
+            """
+            UPDATE services
+            SET minor_policy = CASE WHEN minor_policy = 'not_applicable' THEN ? ELSE minor_policy END,
+                aftercare_category = CASE WHEN aftercare_category = '' THEN ? ELSE aftercare_category END
+            WHERE catalog_key = ?
+            """,
+            (initial_policy, category, service_key),
+        )
     if force_update:
         set_setting_value(conn, "catalog_seed_version", CATALOG_SEED_VERSION)
 
@@ -846,6 +1021,7 @@ def init_db():
             for statement in schema_statements(database.schema()):
                 cursor.execute(statement)
     run_migrations(conn)
+    validate_body_piercing_schema(conn)
 
     current_hours = execute(conn, "SELECT COUNT(*) AS total FROM weekly_hours").fetchone()["total"]
     if current_hours == 0:
@@ -863,6 +1039,14 @@ def init_db():
         ("studio_name", "Studio LR"),
         ("instagram_url", INSTAGRAM_URL),
         ("whatsapp_number", WHATSAPP_NUMBER),
+        ("piercing_term_version", CONSENT_TERM_VERSION),
+        ("piercing_term_content", CONSENT_TERM_TEXT),
+        ("minor_policy_version", MINOR_POLICY_VERSION),
+        ("minor_policy_content", MINOR_POLICY_TEXT),
+        ("piercing_minimum_age", "0"),
+        ("minor_document_check", "true"),
+        ("aftercare_general", json.dumps(AFTERCARE_GENERAL, ensure_ascii=False)),
+        ("aftercare_specific", json.dumps(AFTERCARE_SPECIFIC, ensure_ascii=False)),
     ]
     for setting in settings:
         execute(
@@ -960,6 +1144,8 @@ def public_catalog():
                     "duration_label": f"{service['duration_minutes']} min",
                     "description": service["description"],
                     "price_cents": service["price_cents"],
+                    "minor_policy": service.get("minor_policy", "not_applicable"),
+                    "aftercare_category": service.get("aftercare_category", ""),
                 }
             )
         custom = overrides.get(item["key"], {})
@@ -1005,6 +1191,8 @@ def admin_catalog():
                     "price_cents": service["price_cents"],
                     "duration_minutes": service["duration_minutes"],
                     "active": bool(service["active"]),
+                    "minor_policy": service.get("minor_policy", "not_applicable"),
+                    "aftercare_category": service.get("aftercare_category", ""),
                 }
             )
         custom = overrides.get(item["key"], {})
@@ -1291,6 +1479,7 @@ def appointment_rows(conn, date_value=None, status_filter="", service_filter="",
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
             s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
             s.price_cents AS catalog_price_cents, s.duration_minutes, s.catalog_key AS service_key,
+            pc.id AS consent_id, pc.is_minor AS consent_is_minor, pc.status AS consent_status,
             rr.id AS reschedule_request_id,
             rr.requested_date,
             rr.requested_time,
@@ -1299,6 +1488,7 @@ def appointment_rows(conn, date_value=None, status_filter="", service_filter="",
         FROM appointments a
         JOIN clients c ON c.id = a.client_id
         JOIN services s ON s.id = a.service_id
+        LEFT JOIN piercing_consents pc ON pc.appointment_id = a.id
         LEFT JOIN reschedule_requests rr ON rr.id = (
             SELECT id FROM reschedule_requests
             WHERE appointment_id = a.id
@@ -1537,6 +1727,83 @@ def parse_date(value):
         return None
 
 
+def age_on_date(birth_date, reference_date=None):
+    born = parse_date(birth_date)
+    reference = reference_date or dt.date.today()
+    if not born or born > reference or born.year < 1900:
+        return None
+    return reference.year - born.year - ((reference.month, reference.day) < (born.month, born.day))
+
+
+def cpf_digits(value):
+    return re.sub(r"\D", "", str(value or ""))
+
+
+def valid_cpf_shape(value):
+    digits = cpf_digits(value)
+    if len(digits) != 11 or len(set(digits)) == 1:
+        return False
+    numbers = [int(char) for char in digits]
+    for index in [9, 10]:
+        weight = index + 1
+        total = sum(numbers[position] * (weight - position) for position in range(index))
+        check = (total * 10 % 11) % 10
+        if numbers[index] != check:
+            return False
+    return True
+
+
+def json_setting(conn, key, fallback):
+    try:
+        value = json.loads(setting_value(conn, key, json.dumps(fallback, ensure_ascii=False)))
+        return value if isinstance(value, type(fallback)) else fallback
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return fallback
+
+
+def piercing_policy_payload(conn):
+    try:
+        minimum_age = int(setting_value(conn, "piercing_minimum_age", "0"))
+    except ValueError:
+        minimum_age = 0
+    minimum_age = min(17, max(0, minimum_age))
+    return {
+        "minimum_age": minimum_age,
+        "document_check": setting_value(conn, "minor_document_check", "true") == "true",
+        "policy_version": setting_value(conn, "minor_policy_version", MINOR_POLICY_VERSION),
+        "policy_content": setting_value(conn, "minor_policy_content", MINOR_POLICY_TEXT),
+        "term_version": setting_value(conn, "piercing_term_version", CONSENT_TERM_VERSION),
+        "term_content": setting_value(conn, "piercing_term_content", CONSENT_TERM_TEXT),
+    }
+
+
+def aftercare_payload(conn, category="geral", service_name=""):
+    general = {**AFTERCARE_GENERAL, **json_setting(conn, "aftercare_general", AFTERCARE_GENERAL)}
+    specific = json_setting(conn, "aftercare_specific", AFTERCARE_SPECIFIC)
+    category = category if category in specific else "geral"
+    details = [specific.get(category, specific.get("geral", ""))]
+    if category == "industrial" and specific.get("cartilagem"):
+        details.insert(0, specific["cartilagem"])
+    return {
+        "general": general,
+        "category": category,
+        "specific": details,
+        "service_name": service_name,
+        "whatsapp_url": f"https://wa.me/{WHATSAPP_NUMBER}",
+        "source_url": "https://safepiercing.org/aftercare/",
+    }
+
+
+def mask_cpf(value):
+    digits = cpf_digits(value)
+    return f"***.***.***-{digits[-2:]}" if len(digits) == 11 else ""
+
+
+def mask_phone(value):
+    digits = phone_digits(value)
+    return f"(**) *****-{digits[-4:]}" if len(digits) >= 4 else ""
+
+
 def is_past_date(value):
     parsed = parse_date(value)
     return parsed is not None and parsed < dt.date.today()
@@ -1698,7 +1965,8 @@ def client_appointments(phone):
         SELECT
             a.id, a.appointment_date, a.appointment_time, a.notes, a.status,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
-            s.name AS service_name, s.catalog_key AS service_key,
+            s.name AS service_name, s.catalog_key AS service_key, s.aftercare_category,
+            pc.id AS consent_id, pc.status AS consent_status, pc.term_version,
             rr.id AS reschedule_request_id,
             rr.requested_date,
             rr.requested_time,
@@ -1707,6 +1975,7 @@ def client_appointments(phone):
         FROM appointments a
         JOIN clients c ON c.id = a.client_id
         JOIN services s ON s.id = a.service_id
+        LEFT JOIN piercing_consents pc ON pc.appointment_id = a.id
         LEFT JOIN reschedule_requests rr ON rr.id = (
             SELECT id FROM reschedule_requests
             WHERE appointment_id = a.id
@@ -1723,11 +1992,19 @@ def client_appointments(phone):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        safe_args = list(args)
+        if safe_args and isinstance(safe_args[0], str):
+            safe_args[0] = re.sub(r"\?[^ ]+ HTTP/", "?[parâmetros ocultos] HTTP/", safe_args[0])
+        super().log_message(format, *safe_args)
+
     def translate_path(self, path):
         parsed = urlparse(path)
         clean_path = parsed.path
         if clean_path == "/admin":
             clean_path = "/admin.html"
+        if clean_path in ["/cuidados", "/cuidados/"]:
+            clean_path = "/cuidados.html"
         if clean_path == "/":
             clean_path = "/index.html"
         resolved = (PUBLIC / clean_path.lstrip("/")).resolve()
@@ -1826,6 +2103,38 @@ class Handler(SimpleHTTPRequestHandler):
                         "instagram_url": INSTAGRAM_URL,
                     }
                 )
+        if parsed.path == "/api/public/piercing-consent-config":
+            conn = db()
+            try:
+                policy = piercing_policy_payload(conn)
+                return self.json({
+                    "minimum_age": policy["minimum_age"],
+                    "document_check": policy["document_check"],
+                    "policy_version": policy["policy_version"],
+                    "policy_content": policy["policy_content"],
+                    "term_version": policy["term_version"],
+                    "term_content": policy["term_content"],
+                })
+            finally:
+                conn.close()
+        if parsed.path == "/api/public/aftercare":
+            service_key = str(query.get("service_key", [""])[0]).strip()
+            conn = db()
+            try:
+                service = None
+                if service_key:
+                    service = execute(
+                        conn,
+                        "SELECT name, aftercare_category FROM services WHERE catalog_key = ? AND catalog_key LIKE ?",
+                        (service_key, "piercing-%"),
+                    ).fetchone()
+                return self.json({"aftercare": aftercare_payload(
+                    conn,
+                    service["aftercare_category"] if service else "geral",
+                    service["name"] if service else "",
+                )})
+            finally:
+                conn.close()
         if parsed.path in ["/api/services", "/api/public/services"]:
             return self.json({"services": public_services()})
         if parsed.path in ["/api/catalog", "/api/public/catalog"]:
@@ -1941,6 +2250,33 @@ class Handler(SimpleHTTPRequestHandler):
                 except ValueError as exc:
                     return self.bad(str(exc))
                 return self.json({"appointments": appointments})
+            if parsed.path == "/api/admin/piercing-consents":
+                rows = rows_dict(execute(conn, """
+                    SELECT pc.id, pc.appointment_id, pc.client_name, pc.is_minor,
+                           pc.guardian_name, pc.guardian_cpf, pc.guardian_phone,
+                           pc.service_name, pc.term_version, pc.accepted_at, pc.status,
+                           a.appointment_date, a.appointment_time
+                    FROM piercing_consents pc
+                    JOIN appointments a ON a.id = pc.appointment_id
+                    ORDER BY pc.accepted_at DESC
+                """).fetchall())
+                for item in rows:
+                    item["guardian_cpf"] = mask_cpf(item.get("guardian_cpf"))
+                    item["guardian_phone"] = mask_phone(item.get("guardian_phone"))
+                return self.json({"consents": rows})
+            if parsed.path == "/api/admin/piercing-config":
+                services = rows_dict(execute(conn, """
+                    SELECT id, catalog_key, name, minor_policy, aftercare_category
+                    FROM services WHERE catalog_key LIKE ? ORDER BY name
+                """, ("piercing-%",)).fetchall())
+                return self.json({
+                    "policy": piercing_policy_payload(conn),
+                    "aftercare": {
+                        "general": {**AFTERCARE_GENERAL, **json_setting(conn, "aftercare_general", AFTERCARE_GENERAL)},
+                        "specific": json_setting(conn, "aftercare_specific", AFTERCARE_SPECIFIC),
+                    },
+                    "services": services,
+                })
             if parsed.path == "/api/admin/settings":
                 hours = rows_dict(
                     execute(
@@ -1970,6 +2306,20 @@ class Handler(SimpleHTTPRequestHandler):
                     }
                 )
             parts = parsed.path.strip("/").split("/")
+            if len(parts) == 4 and parts[:3] == ["api", "admin", "piercing-consents"]:
+                try:
+                    consent_id = int(parts[3])
+                except ValueError:
+                    return self.bad("Termo inválido.")
+                consent = execute(conn, """
+                    SELECT pc.*, a.appointment_date, a.appointment_time
+                    FROM piercing_consents pc
+                    JOIN appointments a ON a.id = pc.appointment_id
+                    WHERE pc.id = ?
+                """, (consent_id,)).fetchone()
+                if not consent:
+                    return self.bad("Termo não encontrado.", 404)
+                return self.json({"consent": dict(consent)})
             if len(parts) == 4 and parts[:3] == ["api", "admin", "clients"]:
                 try:
                     history = client_history(int(parts[3]))
@@ -1983,7 +2333,10 @@ class Handler(SimpleHTTPRequestHandler):
             conn.close()
 
     def route_post(self, parsed):
-        if parsed.path in ["/api/appointments", "/api/public/appointments"]:
+        if parsed.path in [
+            "/api/appointments", "/api/public/appointments",
+            "/api/public/client-consent", "/api/public/client-aftercare",
+        ]:
             return self.route_public_post(parsed)
         if parsed.path in ["/api/reschedule-requests", "/api/public/reschedule-requests"]:
             return self.route_public_post(parsed)
@@ -1996,6 +2349,51 @@ class Handler(SimpleHTTPRequestHandler):
             payload = parse_json(self)
         except json.JSONDecodeError:
             return self.bad("JSON inválido.")
+
+        if parsed.path in ["/api/public/client-consent", "/api/public/client-aftercare"]:
+            try:
+                appointment_id = int(payload.get("appointment_id", 0))
+            except (TypeError, ValueError):
+                return self.bad("Agendamento inválido.")
+            phone = phone_digits(payload.get("phone", ""))
+            if not valid_phone(phone):
+                return self.bad("Informe um WhatsApp válido com DDD.")
+            conn = db()
+            try:
+                row = execute(
+                    conn,
+                    """
+                    SELECT a.id, a.status AS appointment_status, s.name AS service_name,
+                           s.catalog_key AS service_key, s.aftercare_category,
+                           pc.id AS consent_id, pc.client_name, pc.client_birth_date,
+                           pc.client_age, pc.is_minor, pc.term_version, pc.term_content,
+                           pc.term_hash, pc.minor_policy_version, pc.minor_policy_content,
+                           pc.guardian_name, pc.guardian_cpf, pc.guardian_phone,
+                           pc.guardian_relationship, pc.accepted_at, pc.status
+                    FROM appointments a
+                    JOIN clients c ON c.id = a.client_id
+                    JOIN services s ON s.id = a.service_id
+                    LEFT JOIN piercing_consents pc ON pc.appointment_id = a.id
+                    WHERE a.id = ? AND c.phone = ? AND s.catalog_key LIKE ?
+                    """,
+                    (appointment_id, phone, "piercing-%"),
+                ).fetchone()
+                if not row:
+                    return self.bad("Agendamento não encontrado para esse WhatsApp.", 404)
+                data = dict(row)
+                if parsed.path.endswith("client-aftercare"):
+                    care = aftercare_payload(conn, data["aftercare_category"], data["service_name"])
+                    care["appointment_status"] = data["appointment_status"]
+                    return self.json({"aftercare": care})
+                if not data.get("consent_id"):
+                    return self.bad("Termo de consentimento não encontrado.", 404)
+                data["guardian_cpf"] = mask_cpf(data.get("guardian_cpf"))
+                data["guardian_phone"] = mask_phone(data.get("guardian_phone"))
+                data.pop("aftercare_category", None)
+                data.pop("appointment_status", None)
+                return self.json({"consent": data})
+            finally:
+                conn.close()
 
         if parsed.path in ["/api/appointments", "/api/public/appointments"]:
             required = ["service_id", "date", "time", "name", "phone"]
@@ -2026,13 +2424,60 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.bad("Escolha uma data atual ou futura.")
 
             service_check = None
+            consent_data = None
             conn = db()
             try:
                 service_check = execute(
                     conn,
-                    "SELECT id, price_cents FROM services WHERE id = ? AND active = 1",
+                    """
+                    SELECT id, name, catalog_key, price_cents, minor_policy
+                    FROM services WHERE id = ? AND active = 1
+                    """,
                     (service_id,),
                 ).fetchone()
+                if service_check and str(service_check["catalog_key"] or "").startswith("piercing-"):
+                    policy = piercing_policy_payload(conn)
+                    birth_date = str(payload.get("birth_date", "")).strip()
+                    client_age = age_on_date(birth_date)
+                    if client_age is None:
+                        return self.bad("Informe uma data de nascimento válida.")
+                    is_minor = client_age < 18
+                    if client_age < policy["minimum_age"]:
+                        return self.bad(f"Este procedimento está disponível a partir de {policy['minimum_age']} anos.", 403)
+                    if client_age < 18 and service_check["minor_policy"] == "adult_only":
+                        return self.bad("Este procedimento está disponível somente para maiores de 18 anos.", 403)
+                    required_acceptances = ["term_accepted", "truth_confirmed", "anatomy_confirmed"]
+                    if any(payload.get(field) is not True for field in required_acceptances):
+                        return self.bad("Leia e aceite todos os itens obrigatórios do termo.")
+                    guardian_required = is_minor and service_check["minor_policy"] != "minors_allowed"
+                    guardian = {
+                        "name": str(payload.get("guardian_name", "")).strip(),
+                        "cpf": cpf_digits(payload.get("guardian_cpf", "")),
+                        "birth_date": str(payload.get("guardian_birth_date", "")).strip(),
+                        "phone": phone_digits(payload.get("guardian_phone", "")),
+                        "relationship": str(payload.get("guardian_relationship", "")).strip(),
+                    }
+                    if guardian_required:
+                        if payload.get("guardian_authorization") is not True:
+                            return self.bad("O responsável legal precisa autorizar o procedimento.")
+                        if not all(guardian.values()):
+                            return self.bad("Preencha todos os dados do responsável legal.")
+                        if not valid_cpf_shape(guardian["cpf"]):
+                            return self.bad("Informe um CPF válido para o responsável.")
+                        guardian_age = age_on_date(guardian["birth_date"])
+                        if guardian_age is None or guardian_age < 18:
+                            return self.bad("O responsável legal deve ser maior de 18 anos.")
+                        if not valid_phone(guardian["phone"]):
+                            return self.bad("Informe um WhatsApp válido para o responsável.")
+                    term_hash = hashlib.sha256(policy["term_content"].encode("utf-8")).hexdigest()
+                    consent_data = {
+                        "birth_date": birth_date,
+                        "age": client_age,
+                        "is_minor": is_minor,
+                        "policy": policy,
+                        "guardian": guardian if guardian_required else {key: "" for key in guardian},
+                        "term_hash": term_hash,
+                    }
             finally:
                 conn.close()
             if not service_check:
@@ -2043,15 +2488,13 @@ class Handler(SimpleHTTPRequestHandler):
 
             conn = db()
             try:
-                execute(
-                    conn,
-                    """
-                    INSERT INTO clients (name, phone)
-                    VALUES (?, ?)
-                    ON CONFLICT(phone) DO UPDATE SET name = excluded.name
-                    """,
-                    (client_name, phone),
-                )
+                birth_date_value = consent_data["birth_date"] if consent_data else ""
+                execute(conn, """
+                    INSERT INTO clients (name, phone, birth_date)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(phone) DO UPDATE SET name = excluded.name,
+                        birth_date = CASE WHEN excluded.birth_date != '' THEN excluded.birth_date ELSE clients.birth_date END
+                    """, (client_name, phone, birth_date_value))
                 execute(
                     conn,
                     "UPDATE clients SET neighborhood = ? WHERE phone = ?",
@@ -2092,6 +2535,34 @@ class Handler(SimpleHTTPRequestHandler):
                         appointment_params,
                     )
                     appointment_id = cursor.lastrowid
+                if consent_data:
+                    guardian = consent_data["guardian"]
+                    policy = consent_data["policy"]
+                    technical_ip = str(self.client_address[0] if self.client_address else "")[:64]
+                    user_agent = str(self.headers.get("User-Agent", ""))[:500]
+                    execute(
+                        conn,
+                        """
+                        INSERT INTO piercing_consents (
+                            appointment_id, client_id, client_name, client_birth_date,
+                            client_age, is_minor, service_id, service_name, service_key,
+                            term_version, term_content, term_hash,
+                            minor_policy_version, minor_policy_content,
+                            guardian_name, guardian_cpf, guardian_birth_date,
+                            guardian_phone, guardian_relationship, ip_address, user_agent
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            appointment_id, client_id, client_name, consent_data["birth_date"],
+                            consent_data["age"], 1 if consent_data["is_minor"] else 0,
+                            service_id, service_check["name"], service_check["catalog_key"],
+                            policy["term_version"], policy["term_content"], consent_data["term_hash"],
+                            policy["policy_version"] if consent_data["is_minor"] else "",
+                            policy["policy_content"] if consent_data["is_minor"] else "",
+                            guardian["name"], guardian["cpf"], guardian["birth_date"],
+                            guardian["phone"], guardian["relationship"], technical_ip, user_agent,
+                        ),
+                    )
                 conn.commit()
                 return self.json({"appointment": appointment_payload(appointment_id)}, 201)
             except Exception as exc:
@@ -2397,6 +2868,56 @@ class Handler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             return self.bad("JSON inválido.")
         parts = parsed.path.strip("/").split("/")
+        if parsed.path == "/api/admin/piercing-config":
+            policy = payload.get("policy", {})
+            aftercare = payload.get("aftercare", {})
+            services = payload.get("services", [])
+            try:
+                minimum_age = int(policy.get("minimum_age", 0))
+            except (TypeError, ValueError):
+                return self.bad("Idade mínima inválida.")
+            if minimum_age < 0 or minimum_age > 17:
+                return self.bad("A idade mínima geral deve estar entre 0 e 17 anos.")
+            required_text = ["term_version", "term_content", "policy_version", "policy_content"]
+            if any(not str(policy.get(key, "")).strip() for key in required_text):
+                return self.bad("Informe os textos e as versões atuais do termo e da política.")
+            general = aftercare.get("general", {})
+            specific = aftercare.get("specific", {})
+            if not isinstance(general, dict) or not isinstance(specific, dict):
+                return self.bad("Configuração de cuidados inválida.")
+            allowed_policies = {"guardian_required", "minors_allowed", "adult_only"}
+            conn = db()
+            try:
+                settings_to_save = {
+                    "piercing_minimum_age": str(minimum_age),
+                    "minor_document_check": "true" if bool(policy.get("document_check", True)) else "false",
+                    "minor_policy_version": str(policy["policy_version"]).strip(),
+                    "minor_policy_content": str(policy["policy_content"]).strip(),
+                    "piercing_term_version": str(policy["term_version"]).strip(),
+                    "piercing_term_content": str(policy["term_content"]).strip(),
+                    "aftercare_general": json.dumps(general, ensure_ascii=False),
+                    "aftercare_specific": json.dumps(specific, ensure_ascii=False),
+                }
+                for key, value in settings_to_save.items():
+                    set_setting_value(conn, key, value)
+                for item in services:
+                    try:
+                        service_id = int(item.get("id"))
+                    except (TypeError, ValueError):
+                        return self.bad("Serviço de piercing inválido.")
+                    minor_policy = str(item.get("minor_policy", ""))
+                    category = re.sub(r"[^a-z0-9_-]", "", str(item.get("aftercare_category", "")).lower())[:60]
+                    if minor_policy not in allowed_policies or not category:
+                        return self.bad("Revise a política e a categoria de cuidados dos serviços.")
+                    execute(conn, """
+                        UPDATE services SET minor_policy = ?, aftercare_category = ?
+                        WHERE id = ? AND catalog_key LIKE ?
+                    """, (minor_policy, category, service_id, "piercing-%"))
+                conn.commit()
+                admin_log("configurações de Body Piercing atualizadas")
+                return self.json({"ok": True})
+            finally:
+                conn.close()
         if len(parts) == 4 and parts[:3] == ["api", "admin", "catalog"]:
             item_key = parts[3]
             default = next((item for item in CATALOG_DEFAULTS if item["key"] == item_key), None)
@@ -2659,6 +3180,7 @@ class Handler(SimpleHTTPRequestHandler):
             if len(parts) == 4 and parts[:3] == ["api", "admin", "appointments"]:
                 appointment_id = int(parts[3])
                 execute(conn, "DELETE FROM reschedule_requests WHERE appointment_id = ?", (appointment_id,))
+                execute(conn, "DELETE FROM piercing_consents WHERE appointment_id = ?", (appointment_id,))
                 execute(conn, "DELETE FROM appointments WHERE id = ?", (appointment_id,))
                 conn.commit()
                 admin_log(f"agendamento excluído: #{appointment_id}")
