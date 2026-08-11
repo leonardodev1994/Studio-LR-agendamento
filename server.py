@@ -208,30 +208,30 @@ CATALOG_DEFAULTS = [
 ]
 CATALOG_DEFAULTS.extend(
     [
-        {"key": "piercing-lobulo", "segment": "piercing", "category": "Orelha", "name": "Lóbulo", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração clássica no lóbulo, com posicionamento definido em avaliação.", "icon": "◉"},
-        {"key": "piercing-upper-lobe", "segment": "piercing", "category": "Orelha", "name": "Upper Lobe", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na parte superior do lóbulo para composições e projetos de orelha.", "icon": "◉"},
-        {"key": "piercing-helix", "segment": "piercing", "category": "Orelha", "name": "Helix", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na borda externa da cartilagem da orelha, sujeita à avaliação de anatomia.", "icon": "◇"},
-        {"key": "piercing-forward-helix", "segment": "piercing", "category": "Orelha", "name": "Forward Helix", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na cartilagem frontal superior da orelha, conforme anatomia individual.", "icon": "◇"},
-        {"key": "piercing-flat", "segment": "piercing", "category": "Orelha", "name": "Flat", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na área plana da cartilagem superior da orelha.", "icon": "◇"},
-        {"key": "piercing-tragus", "segment": "piercing", "category": "Orelha", "name": "Tragus", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na pequena cartilagem diante do canal auditivo, após avaliação.", "icon": "◇"},
-        {"key": "piercing-antitragus", "segment": "piercing", "category": "Orelha", "name": "Anti-tragus", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na cartilagem oposta ao tragus, dependente da anatomia.", "icon": "◇"},
-        {"key": "piercing-conch", "segment": "piercing", "category": "Orelha", "name": "Conch", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na região central da cartilagem da orelha.", "icon": "◇"},
-        {"key": "piercing-rook", "segment": "piercing", "category": "Orelha", "name": "Rook", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na dobra interna superior da cartilagem, sujeita à anatomia.", "icon": "◇"},
-        {"key": "piercing-daith", "segment": "piercing", "category": "Orelha", "name": "Daith", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na dobra interna próxima ao canal auditivo, após avaliação anatômica.", "icon": "◇"},
-        {"key": "piercing-snug", "segment": "piercing", "category": "Orelha", "name": "Snug", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração horizontal na dobra interna da cartilagem, dependente da anatomia.", "icon": "◇"},
-        {"key": "piercing-industrial", "segment": "piercing", "category": "Orelha", "name": "Industrial", "price_cents": 0, "duration_minutes": 60, "description": "Duas perfurações conectadas por uma joia; exige avaliação cuidadosa da anatomia.", "icon": "◇"},
-        {"key": "piercing-orbital", "segment": "piercing", "category": "Orelha", "name": "Orbital", "price_cents": 0, "duration_minutes": 60, "description": "Duas perfurações conectadas pela mesma argola, com planejamento de posição.", "icon": "◇"},
-        {"key": "piercing-nostril", "segment": "piercing", "category": "Face", "name": "Nostril", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração lateral da narina com marcação e joia adequadas à anatomia.", "icon": "✦"},
-        {"key": "piercing-septo", "segment": "piercing", "category": "Face", "name": "Septo", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração do septo em ponto anatômico apropriado, confirmado em avaliação.", "icon": "✦"},
-        {"key": "piercing-sobrancelha", "segment": "piercing", "category": "Face", "name": "Sobrancelha", "price_cents": 0, "duration_minutes": 45, "description": "Perfuração na região da sobrancelha, com avaliação de tecido e posicionamento.", "icon": "✦"},
-        {"key": "piercing-bridge", "segment": "piercing", "category": "Face", "name": "Bridge", "price_cents": 0, "duration_minutes": 60, "description": "Perfuração horizontal na ponte nasal, disponível somente após avaliação anatômica.", "icon": "✦"},
-        {"key": "piercing-labret", "segment": "piercing", "category": "Face", "name": "Labret ou Vertical Labret", "price_cents": 0, "duration_minutes": 60, "description": "Perfuração na região do lábio; formato e posição são definidos na avaliação.", "icon": "✦"},
-        {"key": "piercing-medusa", "segment": "piercing", "category": "Face", "name": "Medusa / Philtrum", "price_cents": 0, "duration_minutes": 60, "description": "Perfuração central acima do lábio superior, após avaliação profissional.", "icon": "✦"},
-        {"key": "piercing-umbigo", "segment": "piercing", "category": "Corpo", "name": "Umbigo", "price_cents": 0, "duration_minutes": 60, "description": "Perfuração corporal com posicionamento e joia definidos conforme a anatomia.", "icon": "◆"},
-        {"key": "piercing-mamilo", "segment": "piercing", "category": "Corpo", "name": "Mamilo", "price_cents": 0, "duration_minutes": 60, "description": "Perfuração corporal realizada somente após avaliação, orientação e consentimento.", "icon": "◆"},
-        {"key": "piercing-surface", "segment": "piercing", "category": "Corpo", "name": "Surface", "price_cents": 0, "duration_minutes": 60, "description": "Perfuração de superfície com análise prévia de tecido, posição e risco de migração.", "icon": "◆"},
-        {"key": "piercing-microdermal", "segment": "piercing", "category": "Corpo", "name": "Microdermal / Surface Anchor", "price_cents": 0, "duration_minutes": 60, "description": "Âncora de ponto único, disponível apenas após avaliação técnica e de anatomia.", "icon": "◆"},
-        {"key": "piercing-avaliacao", "segment": "piercing", "category": "Avaliação", "name": "Outras perfurações", "price_cents": 0, "duration_minutes": 45, "description": "Para projetos personalizados ou outras regiões. A disponibilidade é confirmada antes do procedimento.", "icon": "+"},
+        {"key": "piercing-lobulo", "segment": "piercing", "category": "Orelha", "name": "Lóbulo", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração clássica no lóbulo, com posicionamento definido em avaliação.", "icon": "◉"},
+        {"key": "piercing-upper-lobe", "segment": "piercing", "category": "Orelha", "name": "Upper Lobe", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na parte superior do lóbulo para composições e projetos de orelha.", "icon": "◉"},
+        {"key": "piercing-helix", "segment": "piercing", "category": "Orelha", "name": "Helix", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na borda externa da cartilagem da orelha, sujeita à avaliação de anatomia.", "icon": "◇"},
+        {"key": "piercing-forward-helix", "segment": "piercing", "category": "Orelha", "name": "Forward Helix", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na cartilagem frontal superior da orelha, conforme anatomia individual.", "icon": "◇"},
+        {"key": "piercing-flat", "segment": "piercing", "category": "Orelha", "name": "Flat", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na área plana da cartilagem superior da orelha.", "icon": "◇"},
+        {"key": "piercing-tragus", "segment": "piercing", "category": "Orelha", "name": "Tragus", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na pequena cartilagem diante do canal auditivo, após avaliação.", "icon": "◇"},
+        {"key": "piercing-antitragus", "segment": "piercing", "category": "Orelha", "name": "Anti-tragus", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na cartilagem oposta ao tragus, dependente da anatomia.", "icon": "◇"},
+        {"key": "piercing-conch", "segment": "piercing", "category": "Orelha", "name": "Conch", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na região central da cartilagem da orelha.", "icon": "◇"},
+        {"key": "piercing-rook", "segment": "piercing", "category": "Orelha", "name": "Rook", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na dobra interna superior da cartilagem, sujeita à anatomia.", "icon": "◇"},
+        {"key": "piercing-daith", "segment": "piercing", "category": "Orelha", "name": "Daith", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na dobra interna próxima ao canal auditivo, após avaliação anatômica.", "icon": "◇"},
+        {"key": "piercing-snug", "segment": "piercing", "category": "Orelha", "name": "Snug", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração horizontal na dobra interna da cartilagem, dependente da anatomia.", "icon": "◇"},
+        {"key": "piercing-industrial", "segment": "piercing", "category": "Orelha", "name": "Industrial", "price_cents": 9000, "duration_minutes": 60, "description": "Duas perfurações conectadas por uma joia; exige avaliação cuidadosa da anatomia.", "icon": "◇"},
+        {"key": "piercing-orbital", "segment": "piercing", "category": "Orelha", "name": "Orbital", "price_cents": 8000, "duration_minutes": 60, "description": "Duas perfurações conectadas pela mesma argola, com planejamento de posição.", "icon": "◇"},
+        {"key": "piercing-nostril", "segment": "piercing", "category": "Face", "name": "Nostril", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração lateral da narina com marcação e joia adequadas à anatomia.", "icon": "✦"},
+        {"key": "piercing-septo", "segment": "piercing", "category": "Face", "name": "Septo", "price_cents": 6000, "duration_minutes": 45, "description": "Perfuração do septo em ponto anatômico apropriado, confirmado em avaliação.", "icon": "✦"},
+        {"key": "piercing-sobrancelha", "segment": "piercing", "category": "Face", "name": "Sobrancelha", "price_cents": 5000, "duration_minutes": 45, "description": "Perfuração na região da sobrancelha, com avaliação de tecido e posicionamento.", "icon": "✦"},
+        {"key": "piercing-bridge", "segment": "piercing", "category": "Face", "name": "Bridge", "price_cents": 6000, "duration_minutes": 60, "description": "Perfuração horizontal na ponte nasal, disponível somente após avaliação anatômica.", "icon": "✦"},
+        {"key": "piercing-labret", "segment": "piercing", "category": "Face", "name": "Labret ou Vertical Labret", "price_cents": 6000, "duration_minutes": 60, "description": "Perfuração na região do lábio; formato e posição são definidos na avaliação.", "icon": "✦"},
+        {"key": "piercing-medusa", "segment": "piercing", "category": "Face", "name": "Medusa / Philtrum", "price_cents": 6000, "duration_minutes": 60, "description": "Perfuração central acima do lábio superior, após avaliação profissional.", "icon": "✦"},
+        {"key": "piercing-umbigo", "segment": "piercing", "category": "Corpo", "name": "Umbigo", "price_cents": 6000, "duration_minutes": 60, "description": "Perfuração corporal com posicionamento e joia definidos conforme a anatomia.", "icon": "◆"},
+        {"key": "piercing-mamilo", "segment": "piercing", "category": "Corpo", "name": "Mamilo", "price_cents": 7000, "duration_minutes": 60, "description": "Perfuração corporal realizada somente após avaliação, orientação e consentimento.", "icon": "◆"},
+        {"key": "piercing-surface", "segment": "piercing", "category": "Corpo", "name": "Surface", "price_cents": 15000, "duration_minutes": 60, "description": "Perfuração de superfície com análise prévia de tecido, posição e risco de migração.", "icon": "◆"},
+        {"key": "piercing-microdermal", "segment": "piercing", "category": "Corpo", "name": "Microdermal / Surface Anchor", "price_cents": 18000, "duration_minutes": 60, "description": "Âncora de ponto único, disponível apenas após avaliação técnica e de anatomia.", "icon": "◆"},
+        {"key": "piercing-avaliacao", "segment": "piercing", "category": "Avaliação", "name": "Outras perfurações", "price_cents": 5000, "duration_minutes": 45, "description": "Para projetos personalizados ou outras regiões. A disponibilidade é confirmada antes do procedimento.", "icon": "+"},
     ]
 )
 PUBLIC_REVIEWS = [
@@ -808,6 +808,30 @@ def sync_catalog_services(conn):
             ),
         )
 
+    # A primeira tabela de piercing foi publicada sem preço enquanto os valores
+    # eram definidos. Atualiza somente esses registros ainda zerados e preserva
+    # qualquer preço personalizado salvo depois no administrativo.
+    execute(
+        conn,
+        """
+        UPDATE services
+        SET price_cents = CASE catalog_key
+            WHEN 'piercing-industrial' THEN 9000
+            WHEN 'piercing-orbital' THEN 8000
+            WHEN 'piercing-septo' THEN 6000
+            WHEN 'piercing-bridge' THEN 6000
+            WHEN 'piercing-labret' THEN 6000
+            WHEN 'piercing-medusa' THEN 6000
+            WHEN 'piercing-umbigo' THEN 6000
+            WHEN 'piercing-mamilo' THEN 7000
+            WHEN 'piercing-surface' THEN 15000
+            WHEN 'piercing-microdermal' THEN 18000
+            ELSE 5000
+        END
+        WHERE catalog_key LIKE 'piercing-%' AND price_cents = 0
+        """,
+    )
+
     if force_update:
         set_setting_value(conn, "catalog_seed_version", CATALOG_SEED_VERSION)
 
@@ -1265,7 +1289,7 @@ def appointment_rows(conn, date_value=None, status_filter="", service_filter="",
             a.notes, a.status, a.source, a.created_at,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
             s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
-            s.price_cents AS catalog_price_cents, s.duration_minutes,
+            s.price_cents AS catalog_price_cents, s.duration_minutes, s.catalog_key AS service_key,
             rr.id AS reschedule_request_id,
             rr.requested_date,
             rr.requested_time,
@@ -1624,7 +1648,7 @@ def appointment_payload(appointment_id):
             a.id, a.appointment_date, a.appointment_time, a.notes, a.status,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
             s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
-            s.price_cents AS catalog_price_cents, s.duration_minutes
+            s.price_cents AS catalog_price_cents, s.duration_minutes, s.catalog_key AS service_key
         FROM appointments a
         JOIN clients c ON c.id = a.client_id
         JOIN services s ON s.id = a.service_id
@@ -1636,15 +1660,30 @@ def appointment_payload(appointment_id):
     data = row_dict(row)
     if not data:
         return None
-    message = (
-        "Olá, Letícia! Acabei de solicitar um agendamento.\n\n"
-        f"Serviço: {data['service_name']}\n"
-        f"Data: {data['appointment_date']}\n"
-        f"Horário: {data['appointment_time']}\n"
-        f"Nome: {data['client_name']}\n"
-        f"Telefone: {data['client_phone']}\n\n"
-        "Aguardo confirmação. 💅✨"
-    )
+    is_piercing = str(data.get("service_key") or "").startswith("piercing-")
+    if is_piercing:
+        message = (
+            "Olá, Letícia! Gostaria de verificar a disponibilidade de uma perfuração.\n\n"
+            f"Body Piercing: {data['service_name']}\n"
+            f"Valor base: {price_label(data['price_cents'])}\n"
+            "Joia básica de aço cirúrgico inclusa.\n"
+            "Joias com pedras ou modelos especiais podem alterar o valor.\n\n"
+            f"Data desejada: {data['appointment_date']}\n"
+            f"Horário desejado: {data['appointment_time']}\n"
+            f"Nome: {data['client_name']}\n"
+            f"Telefone: {data['client_phone']}\n\n"
+            "Este serviço está disponível? Aguardo a confirmação pelo WhatsApp ou pelo sistema."
+        )
+    else:
+        message = (
+            "Olá, Letícia! Acabei de solicitar um agendamento.\n\n"
+            f"Serviço: {data['service_name']}\n"
+            f"Data: {data['appointment_date']}\n"
+            f"Horário: {data['appointment_time']}\n"
+            f"Nome: {data['client_name']}\n"
+            f"Telefone: {data['client_phone']}\n\n"
+            "Aguardo confirmação. 💅✨"
+        )
     data["whatsapp_url"] = f"https://wa.me/{WHATSAPP_NUMBER}?text={quote(message)}"
     data["price_label"] = price_label(data["price_cents"])
     return data
@@ -1658,7 +1697,7 @@ def client_appointments(phone):
         SELECT
             a.id, a.appointment_date, a.appointment_time, a.notes, a.status,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
-            s.name AS service_name,
+            s.name AS service_name, s.catalog_key AS service_key,
             rr.id AS reschedule_request_id,
             rr.requested_date,
             rr.requested_time,
