@@ -412,6 +412,7 @@ class Database:
                 appointment_date TEXT NOT NULL,
                 appointment_time TEXT NOT NULL,
                 notes TEXT NOT NULL DEFAULT '',
+                charged_price_cents INTEGER,
                 source TEXT NOT NULL DEFAULT 'site',
                 status TEXT NOT NULL DEFAULT 'Pendente'
                     CHECK(status IN ('Pendente', 'Confirmado', 'Cancelado', 'Concluído')),
@@ -488,6 +489,7 @@ class Database:
             appointment_date TEXT NOT NULL,
             appointment_time TEXT NOT NULL,
             notes TEXT NOT NULL DEFAULT '',
+            charged_price_cents INTEGER,
             source TEXT NOT NULL DEFAULT 'site',
             status TEXT NOT NULL DEFAULT 'Pendente'
                 CHECK(status IN ('Pendente', 'Confirmado', 'Cancelado', 'Concluído')),
@@ -659,6 +661,18 @@ def run_migrations(conn):
         }
         if "source" not in appointment_columns:
             execute(conn, "ALTER TABLE appointments ADD COLUMN source TEXT NOT NULL DEFAULT 'site'")
+        if "charged_price_cents" not in appointment_columns:
+            execute(conn, "ALTER TABLE appointments ADD COLUMN charged_price_cents INTEGER")
+        execute(
+            conn,
+            """
+            UPDATE appointments
+            SET charged_price_cents = (
+                SELECT price_cents FROM services WHERE services.id = appointments.service_id
+            )
+            WHERE charged_price_cents IS NULL
+            """,
+        )
         execute(
             conn,
             """
@@ -678,6 +692,15 @@ def run_migrations(conn):
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_services_catalog_key ON services(catalog_key)")
         cursor.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS neighborhood TEXT NOT NULL DEFAULT ''")
         cursor.execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'site'")
+        cursor.execute("ALTER TABLE appointments ADD COLUMN IF NOT EXISTS charged_price_cents INTEGER")
+        cursor.execute(
+            """
+            UPDATE appointments AS a
+            SET charged_price_cents = s.price_cents
+            FROM services AS s
+            WHERE a.service_id = s.id AND a.charged_price_cents IS NULL
+            """
+        )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS blocked_slots (
@@ -840,12 +863,19 @@ def catalog_overrides(conn):
 
 
 def price_cents_from_label(value):
-    text = str(value or "")
-    normalized = re.sub(r"[^\d,\.]", "", text).replace(".", "").replace(",", ".")
+    text = str(value or "").strip()
+    cleaned = re.sub(r"[^\d,\.]", "", text)
+    if "," in cleaned:
+        normalized = cleaned.replace(".", "").replace(",", ".")
+    elif cleaned.count(".") == 1 and len(cleaned.rsplit(".", 1)[1]) <= 2:
+        normalized = cleaned
+    else:
+        normalized = cleaned.replace(".", "")
     if not normalized:
         return None
     try:
-        return int(round(float(normalized) * 100))
+        cents = int(round(float(normalized) * 100))
+        return cents if cents >= 0 else None
     except ValueError:
         return None
 
@@ -967,7 +997,7 @@ def clients_summary():
                 THEN a.appointment_date || ' ' || a.appointment_time
                 ELSE NULL
             END) AS next_visit,
-            COALESCE(SUM(CASE WHEN a.status = 'Concluído' THEN s.price_cents ELSE 0 END), 0) AS total_spent
+            COALESCE(SUM(CASE WHEN a.status = 'Concluído' THEN COALESCE(a.charged_price_cents, s.price_cents) ELSE 0 END), 0) AS total_spent
         FROM clients c
         LEFT JOIN appointments a ON a.client_id = c.id
         LEFT JOIN services s ON s.id = a.service_id
@@ -988,8 +1018,8 @@ def finance_totals(conn, start_date, end_date):
         conn,
         """
         SELECT
-            COALESCE(SUM(CASE WHEN a.status IN ('Pendente', 'Confirmado') THEN s.price_cents ELSE 0 END), 0) AS forecast,
-            COALESCE(SUM(CASE WHEN a.status = 'Concluído' THEN s.price_cents ELSE 0 END), 0) AS realized
+            COALESCE(SUM(CASE WHEN a.status IN ('Pendente', 'Confirmado') THEN COALESCE(a.charged_price_cents, s.price_cents) ELSE 0 END), 0) AS forecast,
+            COALESCE(SUM(CASE WHEN a.status = 'Concluído' THEN COALESCE(a.charged_price_cents, s.price_cents) ELSE 0 END), 0) AS realized
         FROM appointments a
         JOIN services s ON s.id = a.service_id
         WHERE a.appointment_date >= ? AND a.appointment_date <= ?
@@ -1034,7 +1064,8 @@ def sales_summary(conn, start_date, end_date, status_filter="", source_filter=""
         SELECT
             a.id, a.appointment_date, a.appointment_time, a.status, a.source,
             c.name AS client_name, c.phone AS client_phone,
-            s.name AS service_name, s.price_cents
+            s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
+            s.price_cents AS catalog_price_cents
         FROM appointments a
         JOIN clients c ON c.id = a.client_id
         JOIN services s ON s.id = a.service_id
@@ -1051,6 +1082,8 @@ def sales_summary(conn, start_date, end_date, status_filter="", source_filter=""
     admin_count = 0
     for sale in sales:
         sale["price_label"] = price_label(sale["price_cents"])
+        sale["catalog_price_label"] = price_label(sale["catalog_price_cents"])
+        sale["price_adjusted"] = int(sale["price_cents"]) != int(sale["catalog_price_cents"])
         sale["source_label"] = "Site" if sale.get("source") == "site" else "Manual"
         if sale.get("source") == "site":
             site_count += 1
@@ -1203,7 +1236,8 @@ def appointment_rows(conn, date_value=None, status_filter="", service_filter="",
             a.id, a.service_id, a.client_id, a.appointment_date, a.appointment_time,
             a.notes, a.status, a.source, a.created_at,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
-            s.name AS service_name, s.price_cents, s.duration_minutes,
+            s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
+            s.price_cents AS catalog_price_cents, s.duration_minutes,
             rr.id AS reschedule_request_id,
             rr.requested_date,
             rr.requested_time,
@@ -1300,7 +1334,7 @@ def client_history(client_id):
         """
         SELECT
             COUNT(*) AS total_visits,
-            COALESCE(SUM(s.price_cents), 0) AS total_spent,
+            COALESCE(SUM(COALESCE(a.charged_price_cents, s.price_cents)), 0) AS total_spent,
             MAX(a.appointment_date) AS last_visit
         FROM appointments a
         JOIN services s ON s.id = a.service_id
@@ -1561,7 +1595,8 @@ def appointment_payload(appointment_id):
         SELECT
             a.id, a.appointment_date, a.appointment_time, a.notes, a.status,
             c.name AS client_name, c.phone AS client_phone, c.neighborhood AS client_neighborhood,
-            s.name AS service_name, s.price_cents, s.duration_minutes
+            s.name AS service_name, COALESCE(a.charged_price_cents, s.price_cents) AS price_cents,
+            s.price_cents AS catalog_price_cents, s.duration_minutes
         FROM appointments a
         JOIN clients c ON c.id = a.client_id
         JOIN services s ON s.id = a.service_id
@@ -1927,7 +1962,7 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 service_check = execute(
                     conn,
-                    "SELECT id FROM services WHERE id = ? AND active = 1",
+                    "SELECT id, price_cents FROM services WHERE id = ? AND active = 1",
                     (service_id,),
                 ).fetchone()
             finally:
@@ -1964,14 +1999,15 @@ class Handler(SimpleHTTPRequestHandler):
                     date_value,
                     time_value,
                     notes,
+                    service_check["price_cents"],
                 )
                 if database.kind == "postgres":
                     cursor = execute(
                         conn,
                         """
                         INSERT INTO appointments
-                            (service_id, client_id, appointment_date, appointment_time, notes)
-                        VALUES (?, ?, ?, ?, ?)
+                            (service_id, client_id, appointment_date, appointment_time, notes, charged_price_cents)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         RETURNING id
                         """,
                         appointment_params,
@@ -1982,8 +2018,8 @@ class Handler(SimpleHTTPRequestHandler):
                         conn,
                         """
                         INSERT INTO appointments
-                            (service_id, client_id, appointment_date, appointment_time, notes)
-                        VALUES (?, ?, ?, ?, ?)
+                            (service_id, client_id, appointment_date, appointment_time, notes, charged_price_cents)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         """,
                         appointment_params,
                     )
@@ -2174,19 +2210,22 @@ class Handler(SimpleHTTPRequestHandler):
             conn = db()
             try:
                 client = execute(conn, "SELECT id FROM clients WHERE id = ?", (client_id,)).fetchone()
-                service = execute(conn, "SELECT id FROM services WHERE id = ?", (service_id,)).fetchone()
+                service = execute(conn, "SELECT id, price_cents FROM services WHERE id = ?", (service_id,)).fetchone()
                 if not client:
                     return self.bad("Cliente não encontrada.", 404)
                 if not service:
                     return self.bad("Serviço não encontrado.", 404)
-                params = (service_id, client_id, date_value, time_value, notes, status)
+                charged_price_cents = price_cents_from_label(payload.get("price"))
+                if charged_price_cents is None:
+                    charged_price_cents = int(service["price_cents"])
+                params = (service_id, client_id, date_value, time_value, notes, charged_price_cents, status)
                 if database.kind == "postgres":
                     cursor = execute(
                         conn,
                         """
                         INSERT INTO appointments
-                            (service_id, client_id, appointment_date, appointment_time, notes, source, status)
-                        VALUES (?, ?, ?, ?, ?, 'admin', ?)
+                            (service_id, client_id, appointment_date, appointment_time, notes, charged_price_cents, source, status)
+                        VALUES (?, ?, ?, ?, ?, ?, 'admin', ?)
                         RETURNING id
                         """,
                         params,
@@ -2197,8 +2236,8 @@ class Handler(SimpleHTTPRequestHandler):
                         conn,
                         """
                         INSERT INTO appointments
-                            (service_id, client_id, appointment_date, appointment_time, notes, source, status)
-                        VALUES (?, ?, ?, ?, ?, 'admin', ?)
+                            (service_id, client_id, appointment_date, appointment_time, notes, charged_price_cents, source, status)
+                        VALUES (?, ?, ?, ?, ?, ?, 'admin', ?)
                         """,
                         params,
                     )
@@ -2468,6 +2507,11 @@ class Handler(SimpleHTTPRequestHandler):
                 client_name = str(payload.get("client_name", current["client_name"])).strip()
                 client_phone = phone_digits(payload.get("client_phone", current["client_phone"]))
                 client_neighborhood = str(payload.get("client_neighborhood", current["client_neighborhood"] or "")).strip()
+                charged_price_cents = current["charged_price_cents"]
+                if "price" in payload:
+                    charged_price_cents = price_cents_from_label(payload.get("price"))
+                    if charged_price_cents is None:
+                        return self.bad("Informe um valor válido para o serviço.")
 
                 if not client_name:
                     return self.bad("Informe o nome da cliente.")
@@ -2507,10 +2551,10 @@ class Handler(SimpleHTTPRequestHandler):
                     conn,
                     """
                     UPDATE appointments
-                    SET service_id = ?, appointment_date = ?, appointment_time = ?, notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+                    SET service_id = ?, appointment_date = ?, appointment_time = ?, notes = ?, status = ?, charged_price_cents = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                     """,
-                    (service_id, date_value, time_value, notes, status, appointment_id),
+                    (service_id, date_value, time_value, notes, status, charged_price_cents, appointment_id),
                 )
                 conn.commit()
                 admin_log(f"agendamento atualizado: #{appointment_id} {status} {date_value} {time_value}")
