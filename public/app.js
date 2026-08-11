@@ -9,8 +9,15 @@ const state = {
 };
 
 const servicesGrid = document.querySelector("#servicesGrid");
-const serviceChoices = document.querySelector("#serviceChoices");
 const bookingForm = document.querySelector("#bookingForm");
+const bookingServiceInput = document.querySelector("#bookingServiceId");
+const selectedServiceSummary = document.querySelector("#selectedServiceSummary");
+const selectedServiceName = document.querySelector("#selectedServiceName");
+const selectedServiceMeta = document.querySelector("#selectedServiceMeta");
+const changeServiceButton = document.querySelector("#changeServiceButton");
+const serviceQuickPicker = document.querySelector("#serviceQuickPicker");
+const serviceQuickPickerList = document.querySelector("#serviceQuickPickerList");
+const bookingClientDetails = document.querySelector("#bookingClientDetails");
 const bookingDate = document.querySelector("#bookingDate");
 const bookingTime = document.querySelector("#bookingTime");
 const bookingMessage = document.querySelector("#bookingMessage");
@@ -194,11 +201,15 @@ function renderServices() {
     .map((service, index) => {
       return `
       <article class="service-card ${service.image ? "with-image" : "without-image"}">
-        ${
-          service.image
+        ${service.bookable === false
+          ? (service.image
             ? `<img class="service-photo" src="${service.image}" alt="${service.name}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.closest('.service-card')?.classList.add('image-failed')">`
-            : `<div class="service-placeholder"><span class="service-icon">${service.icon || "✦"}</span></div>`
-        }
+            : `<div class="service-placeholder"><span class="service-icon">${service.icon || "✦"}</span></div>`)
+          : `<button class="public-service-photo-button" type="button" data-service="${service.key}" aria-label="Agendar ${service.name}">
+              ${service.image
+                ? `<img class="service-photo" src="${service.image}" alt="${service.name}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.closest('.service-card')?.classList.add('image-failed')">`
+                : `<span class="service-placeholder"><span class="service-icon">${service.icon || "✦"}</span></span>`}
+            </button>`}
         ${service.category ? `<span class="service-category">${service.category}</span>` : ""}
         <h3>${service.name}</h3>
         <div class="service-meta">
@@ -209,32 +220,35 @@ function renderServices() {
         ${
           service.bookable === false
             ? `<span class="button secondary service-disabled">Adicional no atendimento</span>`
-            : `<a class="button secondary" href="#agendar" data-service="${service.key}">Agendar</a>`
+            : `<a class="button secondary" href="#bookingClientDetails" data-service="${service.key}">Agendar</a>`
         }
       </article>
     `;
     })
     .join("");
 
-  serviceChoices.innerHTML = bookableCatalog
-    .map((service) => `
-      <label class="choice-card">
-        <input type="radio" name="service_id" value="${service.key}" required>
-        <span>
-          <strong>${service.name}</strong>
-          <small>${service.price_label} · ${service.duration_label}</small>
-        </span>
-      </label>
-    `)
-    .join("");
+  if (serviceQuickPickerList) {
+    serviceQuickPickerList.innerHTML = bookableCatalog.map((service) => `
+      <button type="button" data-quick-service="${service.key}">
+        <span><strong>${service.name}</strong><small>${service.duration_label}</small></span>
+        <em>${service.price_label}</em>
+      </button>
+    `).join("");
+    serviceQuickPickerList.querySelectorAll("[data-quick-service]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectService(button.dataset.quickService);
+        closeServicePicker();
+      });
+    });
+  }
 
   document.querySelectorAll("[data-service]").forEach((button) => {
-    button.addEventListener("click", () => selectService(button.dataset.service));
-  });
-  document.querySelectorAll("input[name='service_id']").forEach((input) => {
-    input.addEventListener("change", () => {
-      state.selectedServiceId = input.value;
-      loadAvailability();
+    button.addEventListener("click", (event) => {
+      selectService(button.dataset.service);
+      if (button.tagName === "BUTTON") {
+        event.preventDefault();
+        bookingClientDetails?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
   });
 
@@ -315,11 +329,36 @@ function moveLightbox(direction) {
 
 function selectService(serviceId) {
   state.selectedServiceId = String(serviceId);
-  const input = document.querySelector(`input[name='service_id'][value='${serviceId}']`);
-  if (input) input.checked = true;
+  if (bookingServiceInput) bookingServiceInput.value = state.selectedServiceId;
+  const service = (state.catalog.length ? state.catalog : publicServices).find((item) => {
+    const itemKey = item.service_id || item.serviceId || `custom:${item.key || item.name}`;
+    return String(itemKey) === state.selectedServiceId;
+  });
+  if (selectedServiceSummary && service) {
+    selectedServiceName.textContent = service.name;
+    selectedServiceMeta.textContent = `${service.price_label} · ${service.duration_label}`;
+    serviceQuickPickerList?.querySelectorAll("[data-quick-service]").forEach((button) => {
+      const selected = String(button.dataset.quickService) === state.selectedServiceId;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+  }
   setMessage("");
   loadAvailability();
 }
+
+function closeServicePicker() {
+  serviceQuickPicker?.classList.add("hidden");
+  changeServiceButton?.setAttribute("aria-expanded", "false");
+  changeServiceButton?.focus({ preventScroll: true });
+}
+
+changeServiceButton?.addEventListener("click", () => {
+  const willOpen = serviceQuickPicker?.classList.contains("hidden");
+  serviceQuickPicker?.classList.toggle("hidden", !willOpen);
+  changeServiceButton.setAttribute("aria-expanded", String(willOpen));
+  if (willOpen) serviceQuickPicker?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
 
 async function loadAvailability() {
   bookingTime.innerHTML = "<option value=''>Carregando horários...</option>";
