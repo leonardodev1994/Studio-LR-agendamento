@@ -958,6 +958,7 @@ def clients_summary():
         """
         SELECT
             c.id, c.name, c.phone, c.neighborhood, c.created_at,
+            COUNT(a.id) AS appointments_total,
             SUM(CASE WHEN a.status = 'Concluído' THEN 1 ELSE 0 END) AS visits,
             MAX(CASE WHEN a.status = 'Concluído' THEN a.appointment_date ELSE NULL END) AS last_visit,
             MIN(CASE
@@ -2389,6 +2390,32 @@ class Handler(SimpleHTTPRequestHandler):
                 execute(conn, "DELETE FROM appointments WHERE id = ?", (appointment_id,))
                 conn.commit()
                 admin_log(f"agendamento excluído: #{appointment_id}")
+                return self.json({"ok": True})
+            if len(parts) == 4 and parts[:3] == ["api", "admin", "clients"]:
+                try:
+                    client_id = int(parts[3])
+                except ValueError:
+                    return self.bad("Cliente inválida.")
+                client = execute(
+                    conn,
+                    "SELECT id, name FROM clients WHERE id = ?",
+                    (client_id,),
+                ).fetchone()
+                if not client:
+                    return self.bad("Cliente não encontrada.", 404)
+                appointments_total = execute(
+                    conn,
+                    "SELECT COUNT(*) AS total FROM appointments WHERE client_id = ?",
+                    (client_id,),
+                ).fetchone()["total"]
+                if appointments_total:
+                    return self.bad(
+                        "Esta cliente possui agendamentos. Exclua os agendamentos vinculados antes de apagar o cadastro.",
+                        409,
+                    )
+                execute(conn, "DELETE FROM clients WHERE id = ?", (client_id,))
+                conn.commit()
+                admin_log(f"cadastro de cliente excluído: #{client_id}")
                 return self.json({"ok": True})
             self.send_error(404)
         finally:
