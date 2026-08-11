@@ -2053,6 +2053,69 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+        if parsed.path == "/api/admin/appointments":
+            if not self.require_auth():
+                return
+            try:
+                client_id = int(payload.get("client_id", "0"))
+                service_id = int(payload.get("service_id", "0"))
+            except (TypeError, ValueError):
+                return self.bad("Selecione uma cliente e um serviço válidos.")
+            date_value = str(payload.get("date", "")).strip()
+            time_value = str(payload.get("time", "")).strip()
+            notes = str(payload.get("notes", "")).strip()
+            status = str(payload.get("status", "Concluído")).strip()
+            if not parse_date(date_value):
+                return self.bad("Informe uma data válida.")
+            try:
+                dt.datetime.strptime(time_value, "%H:%M")
+            except ValueError:
+                return self.bad("Informe um horário válido.")
+            if status not in ["Pendente", "Confirmado", "Cancelado", "Concluído"]:
+                return self.bad("Status inválido.")
+
+            conn = db()
+            try:
+                client = execute(conn, "SELECT id FROM clients WHERE id = ?", (client_id,)).fetchone()
+                service = execute(conn, "SELECT id FROM services WHERE id = ?", (service_id,)).fetchone()
+                if not client:
+                    return self.bad("Cliente não encontrada.", 404)
+                if not service:
+                    return self.bad("Serviço não encontrado.", 404)
+                params = (service_id, client_id, date_value, time_value, notes, status)
+                if database.kind == "postgres":
+                    cursor = execute(
+                        conn,
+                        """
+                        INSERT INTO appointments
+                            (service_id, client_id, appointment_date, appointment_time, notes, source, status)
+                        VALUES (?, ?, ?, ?, ?, 'admin', ?)
+                        RETURNING id
+                        """,
+                        params,
+                    )
+                    appointment_id = cursor.fetchone()["id"]
+                else:
+                    cursor = execute(
+                        conn,
+                        """
+                        INSERT INTO appointments
+                            (service_id, client_id, appointment_date, appointment_time, notes, source, status)
+                        VALUES (?, ?, ?, ?, ?, 'admin', ?)
+                        """,
+                        params,
+                    )
+                    appointment_id = cursor.lastrowid
+                conn.commit()
+                admin_log(f"atendimento manual criado: #{appointment_id} {date_value} {time_value}")
+                return self.json({"appointment": appointment_payload(appointment_id)}, 201)
+            except Exception as exc:
+                if exc.__class__.__name__ not in ["IntegrityError", "UniqueViolation"]:
+                    raise
+                return self.bad("Já existe um atendimento nesse dia e horário.", 409)
+            finally:
+                conn.close()
+
         if parsed.path == "/api/admin/blocked-days":
             if not self.require_auth():
                 return
