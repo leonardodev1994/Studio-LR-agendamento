@@ -1833,6 +1833,7 @@ textarea:focus {
 
 .ops-login-card input,
 .ops-form-panel input,
+.ops-form-panel select,
 .ops-inline-form input,
 .ops-inline-form select,
 .ops-inline-form textarea,
@@ -2332,6 +2333,16 @@ textarea:focus {
   gap: 12px;
 }
 
+.ops-manual-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.ops-manual-form h2,
+.ops-manual-form .ops-message {
+  grid-column: 1 / -1;
+}
+
 .ops-services {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2506,6 +2517,7 @@ textarea:focus {
   .ops-grid.three,
   .ops-services,
   .ops-service-card,
+  .ops-manual-form,
   .ops-inline-form,
   .ops-filters,
   .ops-appointment {
