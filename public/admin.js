@@ -31,6 +31,8 @@ const adminServicesList = document.querySelector("#adminServicesList");
 const clientsList = document.querySelector("#clientsList");
 const clientSearch = document.querySelector("#clientSearch");
 const clientActionMessage = document.querySelector("#clientActionMessage");
+const manualAppointmentForm = document.querySelector("#manualAppointmentForm");
+const manualAppointmentMessage = document.querySelector("#manualAppointmentMessage");
 const financeSummary = document.querySelector("#financeSummary");
 const adminGalleryList = document.querySelector("#adminGalleryList");
 const configSummary = document.querySelector("#configSummary");
@@ -392,6 +394,21 @@ async function loadClients() {
   const payload = await api("/api/admin/clients");
   clientsCache = payload.clients || [];
   renderClients();
+  refreshManualAppointmentOptions();
+}
+
+function refreshManualAppointmentOptions() {
+  if (!manualAppointmentForm) return;
+  const clientSelect = manualAppointmentForm.querySelector("select[name='client_id']");
+  const serviceSelect = manualAppointmentForm.querySelector("select[name='service_id']");
+  const selectedClient = clientSelect.value;
+  const selectedService = serviceSelect.value;
+  clientSelect.innerHTML = `<option value="">Selecione a cliente</option>${clientsCache.map((client) => `<option value="${client.id}" ${Number(client.id) === Number(selectedClient) ? "selected" : ""}>${escapeHtml(client.name)} · ${escapeHtml(client.phone)}</option>`).join("")}`;
+  serviceSelect.innerHTML = `<option value="">Selecione o serviço</option>${serviceOptions(selectedService)}`;
+  const dateInput = manualAppointmentForm.querySelector("input[name='date']");
+  const timeInput = manualAppointmentForm.querySelector("input[name='time']");
+  if (!dateInput.value) dateInput.value = todayIso();
+  if (!timeInput.value) timeInput.value = new Date().toTimeString().slice(0, 5);
 }
 
 function renderClients() {
@@ -448,6 +465,7 @@ async function openClientHistory(clientId) {
   const payload = await api(`/api/admin/clients/${clientId}`);
   const history = payload.history;
   const client = history.client;
+  const completedAppointments = (history.appointments || []).filter((item) => item.status === "Concluído").reverse();
   let modal = document.querySelector("#opsModal");
   if (!modal) {
     modal = document.createElement("div");
@@ -471,6 +489,23 @@ async function openClientHistory(clientId) {
       <h3>Serviços concluídos</h3>
       <div class="ops-list">
         ${history.services.length ? history.services.map((service) => `<div class="ops-mini-row"><span>${escapeHtml(service.name)}</span><strong>${service.total}</strong></div>`).join("") : `<p class="ops-empty">Nenhum serviço concluído ainda.</p>`}
+      </div>
+      <h3>Atendimentos realizados</h3>
+      <div class="ops-table-wrap">
+        ${completedAppointments.length ? `
+          <table class="ops-table">
+            <thead><tr><th>Data</th><th>Horário</th><th>Serviço</th><th>Valor</th><th>Origem</th></tr></thead>
+            <tbody>${completedAppointments.map((item) => `
+              <tr>
+                <td>${formatDate(item.appointment_date)}</td>
+                <td>${escapeHtml(item.appointment_time)}</td>
+                <td>${escapeHtml(item.service_name)}</td>
+                <td>${escapeHtml(item.price_label)}</td>
+                <td>${escapeHtml(item.source_label)}</td>
+              </tr>
+            `).join("")}</tbody>
+          </table>
+        ` : `<p class="ops-empty">Nenhum atendimento concluído registrado.</p>`}
       </div>
     </section>
   `;
@@ -499,6 +534,7 @@ async function loadAdminServices() {
   catalog = payload.catalog || [];
   const serviceFilter = appointmentFilters.querySelector("select[name='service_id']");
   serviceFilter.innerHTML = `<option value="">Todos os serviços</option>${serviceOptions("")}`;
+  refreshManualAppointmentOptions();
   adminServicesList.innerHTML = catalog.map((service) => `
     <form class="ops-service-card" data-service-form="${service.key}">
       <button class="ops-service-photo" type="button" data-service-photo-pick="${service.key}">
@@ -685,6 +721,24 @@ logoutButton.addEventListener("click", async () => {
 adminTabs.forEach((tab) => tab.addEventListener("click", () => setModule(tab.dataset.adminModule)));
 document.querySelectorAll("[data-jump-module]").forEach((button) => button.addEventListener("click", () => setModule(button.dataset.jumpModule)));
 clientSearch?.addEventListener("input", renderClients);
+manualAppointmentForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  manualAppointmentMessage.textContent = "Registrando atendimento...";
+  const data = Object.fromEntries(new FormData(manualAppointmentForm));
+  try {
+    await api("/api/admin/appointments", { method: "POST", body: JSON.stringify(data) });
+    manualAppointmentMessage.textContent = "Atendimento registrado com sucesso.";
+    manualAppointmentMessage.className = "ops-message success";
+    const savedDate = data.date;
+    manualAppointmentForm.reset();
+    manualAppointmentForm.querySelector("input[name='date']").value = savedDate || todayIso();
+    manualAppointmentForm.querySelector("select[name='status']").value = "Concluído";
+    await Promise.all([loadClients(), refreshAgenda(), loadDashboard(), loadFinance()]);
+  } catch (error) {
+    manualAppointmentMessage.textContent = error.message || "Não foi possível registrar o atendimento.";
+    manualAppointmentMessage.className = "ops-message";
+  }
+});
 appointmentFilters.addEventListener("submit", async (event) => {
   event.preventDefault();
   await loadAppointments();
