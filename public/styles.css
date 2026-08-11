@@ -295,6 +295,35 @@ h3 {
   background: var(--ink);
 }
 
+.piercing-price-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: -12px 0 24px;
+  padding: 14px 18px;
+  border: 1px solid rgba(118, 85, 126, 0.26);
+  border-radius: 16px;
+  color: #352a38;
+  background: #f6f0f7;
+}
+
+.piercing-price-note span {
+  color: #6f6372;
+  font-size: 13px;
+}
+
+.piercing-price-note[hidden] {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .piercing-price-note {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .piercing-guidance {
   background: linear-gradient(145deg, #17141a, #29232d);
   color: #fff;
