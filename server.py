@@ -1004,6 +1004,81 @@ def finance_totals(conn, start_date, end_date):
     }
 
 
+def sales_summary(conn, start_date, end_date, status_filter="", source_filter="", service_filter="", search_filter=""):
+    filters = ["a.appointment_date >= ?", "a.appointment_date <= ?"]
+    params = [start_date, end_date]
+    if status_filter:
+        filters.append("a.status = ?")
+        params.append(status_filter)
+    if source_filter:
+        if source_filter not in ("site", "admin"):
+            raise ValueError("Origem inválida.")
+        filters.append("a.source = ?")
+        params.append(source_filter)
+    if service_filter:
+        try:
+            service_id = int(service_filter)
+        except ValueError:
+            raise ValueError("Serviço inválido.")
+        filters.append("a.service_id = ?")
+        params.append(service_id)
+    if search_filter:
+        like_value = f"%{search_filter}%"
+        filters.append("(c.name LIKE ? OR c.phone LIKE ?)")
+        params.extend([like_value, like_value])
+
+    where_sql = " AND ".join(filters)
+    rows = execute(
+        conn,
+        f"""
+        SELECT
+            a.id, a.appointment_date, a.appointment_time, a.status, a.source,
+            c.name AS client_name, c.phone AS client_phone,
+            s.name AS service_name, s.price_cents
+        FROM appointments a
+        JOIN clients c ON c.id = a.client_id
+        JOIN services s ON s.id = a.service_id
+        WHERE {where_sql}
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+        """,
+        tuple(params),
+    ).fetchall()
+    sales = rows_dict(rows)
+    realized_cents = 0
+    forecast_cents = 0
+    completed_count = 0
+    site_count = 0
+    admin_count = 0
+    for sale in sales:
+        sale["price_label"] = price_label(sale["price_cents"])
+        sale["source_label"] = "Site" if sale.get("source") == "site" else "Manual"
+        if sale.get("source") == "site":
+            site_count += 1
+        else:
+            admin_count += 1
+        if sale["status"] == "Concluído":
+            completed_count += 1
+            realized_cents += int(sale["price_cents"] or 0)
+        elif sale["status"] in ("Pendente", "Confirmado"):
+            forecast_cents += int(sale["price_cents"] or 0)
+    average_ticket_cents = round(realized_cents / completed_count) if completed_count else 0
+    return {
+        "sales": sales,
+        "summary": {
+            "records": len(sales),
+            "completed_count": completed_count,
+            "realized_cents": realized_cents,
+            "realized_label": price_label(realized_cents),
+            "forecast_cents": forecast_cents,
+            "forecast_label": price_label(forecast_cents),
+            "average_ticket_cents": average_ticket_cents,
+            "average_ticket_label": price_label(average_ticket_cents),
+            "site_count": site_count,
+            "admin_count": admin_count,
+        },
+    }
+
+
 def admin_finance_summary(date_value=None):
     base_date = parse_date(date_value) if date_value else dt.date.today()
     if not base_date:
@@ -1729,6 +1804,28 @@ class Handler(SimpleHTTPRequestHandler):
                         }
                     }
                 )
+            if parsed.path == "/api/admin/sales":
+                today = dt.date.today()
+                default_start = today.replace(day=1).isoformat()
+                start_date = query.get("date_from", [default_start])[0]
+                end_date = query.get("date_to", [today.isoformat()])[0]
+                if not parse_date(start_date) or not parse_date(end_date):
+                    return self.bad("Período inválido.")
+                if start_date > end_date:
+                    return self.bad("A data inicial deve ser anterior à data final.")
+                try:
+                    payload = sales_summary(
+                        conn,
+                        start_date,
+                        end_date,
+                        query.get("status", [""])[0],
+                        query.get("source", [""])[0],
+                        query.get("service_id", [""])[0],
+                        query.get("search", [""])[0].strip(),
+                    )
+                except ValueError as exc:
+                    return self.bad(str(exc))
+                return self.json(payload)
             if parsed.path == "/api/admin/gallery":
                 return self.json({"gallery": [{**item, "featured": item["index"] == 1} for item in public_gallery()]})
             if parsed.path == "/api/admin/appointments":
