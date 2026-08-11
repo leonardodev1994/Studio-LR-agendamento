@@ -268,6 +268,65 @@ h3 {
   text-align: center;
 }
 
+.service-segment-switch {
+  display: inline-flex;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--white);
+  box-shadow: var(--soft-shadow);
+}
+
+.service-segment-switch button {
+  min-height: 42px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.service-segment-switch button.active {
+  color: var(--white);
+  background: var(--ink);
+}
+
+.piercing-guidance {
+  background: linear-gradient(145deg, #17141a, #29232d);
+  color: #fff;
+}
+
+.piercing-guidance .section-subtitle,
+.piercing-guidance .step-card p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.piercing-guidance .step-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+body[data-service-segment="piercing"] .hero-overlay {
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.94) 0%, rgba(245,239,247,0.86) 42%, rgba(35,26,38,0.5) 100%),
+    linear-gradient(180deg, rgba(255,255,255,0.64), rgba(31,22,34,0.68));
+}
+
+body[data-service-segment="piercing"] .service-card.without-image .service-placeholder {
+  background:
+    radial-gradient(circle at center, rgba(94, 72, 102, 0.22), transparent 36%),
+    linear-gradient(135deg, #f3eef4, #fff);
+}
+
+body[data-service-segment="piercing"] .service-category,
+body[data-service-segment="piercing"] .eyebrow {
+  color: #76557e;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
