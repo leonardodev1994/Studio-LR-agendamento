@@ -494,15 +494,24 @@ function observeOnce(elements, callback, rootMargin = "500px") {
 
 function setupLazyVideos() {
   const videos = Array.from(document.querySelectorAll("[data-lazy-video]"));
-  observeOnce(videos, () => {
-    videos.forEach((video) => {
+  videos.forEach((video) => {
+    observeOnce([video], () => {
       video.querySelectorAll("source[data-src]").forEach((source) => {
         source.src = source.dataset.src;
         source.removeAttribute("data-src");
       });
+      if (video.hasAttribute("data-autoplay-video")) {
+        video.muted = true;
+        video.defaultMuted = true;
+        video.loop = true;
+        video.playsInline = true;
+        const startPlayback = () => video.play().catch(() => {});
+        video.addEventListener("canplay", startPlayback, { once: true });
+        startPlayback();
+      }
       video.load();
-    });
-  }, "600px");
+    }, "300px");
+  });
 }
 
 bookingDate.min = todayIso();
