@@ -154,6 +154,17 @@
               </div>
               <input id="clientSearch" class="ops-search" placeholder="Buscar cliente, telefone ou bairro">
             </div>
+            <form id="manualAppointmentForm" class="ops-form-panel ops-manual-form">
+              <h2>Lançar atendimento manual</h2>
+              <label>Cliente<select name="client_id" required><option value="">Selecione a cliente</option></select></label>
+              <label>Serviço<select name="service_id" required><option value="">Selecione o serviço</option></select></label>
+              <label>Data<input name="date" type="date" required></label>
+              <label>Horário<input name="time" type="time" required></label>
+              <label>Status<select name="status" required><option value="Concluído">Concluído</option><option value="Confirmado">Confirmado</option><option value="Pendente">Pendente</option><option value="Cancelado">Cancelado</option></select></label>
+              <label>Observação<input name="notes" placeholder="Ex.: atendimento sem agendamento online"></label>
+              <button class="ops-button primary" type="submit">Registrar atendimento</button>
+              <p id="manualAppointmentMessage" class="ops-message" aria-live="polite"></p>
+            </form>
             <p id="clientActionMessage" class="ops-message" aria-live="polite"></p>
             <div id="clientsList" class="ops-table-wrap"></div>
           </section>
