@@ -207,7 +207,7 @@ Rotas administrativas protegidas por login:
 - `DELETE /api/admin/blocked-days/:id`
 - `DELETE /api/admin/extra-slots/:id`
 
-A disponibilidade semanal oferece somente `08:00`, `14:00` e `20:00`, de
+A disponibilidade semanal oferece somente `08:00`, `14:00` e `19:30`, de
 segunda a sábado. Pelo painel administrativo, **Horários > Adicionar horário
 disponível** libera um horário adicional para uma data específica.
 

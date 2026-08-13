@@ -31,7 +31,7 @@ class AvailabilityTests(unittest.TestCase):
         return candidate.isoformat()
 
     def test_default_schedule_has_only_the_three_configured_hours(self):
-        self.assertEqual(server.slots_for(self.weekday()), ["08:00", "14:00", "20:00"])
+        self.assertEqual(server.slots_for(self.weekday()), ["08:00", "14:00", "19:30"])
 
     def test_legacy_hourly_ranges_cannot_appear_on_the_booking_form(self):
         date_value = self.weekday()
@@ -48,7 +48,7 @@ class AvailabilityTests(unittest.TestCase):
         conn.commit()
         conn.close()
 
-        self.assertEqual(server.slots_for(date_value), ["08:00", "14:00", "20:00"])
+        self.assertEqual(server.slots_for(date_value), ["08:00", "14:00", "19:30"])
 
     def test_an_extra_available_time_is_added_for_the_selected_date(self):
         date_value = self.weekday()
@@ -61,7 +61,7 @@ class AvailabilityTests(unittest.TestCase):
         conn.commit()
         conn.close()
 
-        self.assertEqual(server.slots_for(date_value), ["08:00", "14:00", "14:30", "20:00"])
+        self.assertEqual(server.slots_for(date_value), ["08:00", "14:00", "14:30", "19:30"])
 
 
 if __name__ == "__main__":

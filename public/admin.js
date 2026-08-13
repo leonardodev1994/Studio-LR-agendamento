@@ -692,24 +692,36 @@ async function loadAdminServices() {
 
 async function loadSettings() {
   const payload = await api("/api/admin/settings");
-  weeklyHoursList.innerHTML = payload.hours.map((hour) => `
-    <form class="ops-week-row" data-week-hour="${hour.id}">
-      <strong>${weekdays[hour.weekday] || `Dia ${hour.weekday}`}</strong>
-      <input name="start_time" type="time" value="${escapeHtml(hour.start_time)}">
-      <input name="end_time" type="time" value="${escapeHtml(hour.end_time)}">
-      <input name="slot_minutes" type="number" min="15" max="1440" step="15" value="${hour.slot_minutes}">
-      <label><input name="active" type="checkbox" ${hour.active ? "checked" : ""}> Ativo</label>
+  const hoursByWeekday = Object.values(payload.hours.reduce((groups, hour) => {
+    const key = String(hour.weekday);
+    if (!groups[key]) groups[key] = { weekday: hour.weekday, rows: [] };
+    groups[key].rows.push(hour);
+    return groups;
+  }, {}));
+  weeklyHoursList.innerHTML = hoursByWeekday.map((day) => `
+    <form class="ops-week-row" data-weekday="${day.weekday}">
+      <strong>${weekdays[day.weekday] || `Dia ${day.weekday}`}</strong>
+      <span>08:00</span>
+      <span>14:00</span>
+      <span>19:30</span>
+      <label><input name="active" type="checkbox" ${day.rows.some((hour) => hour.active) ? "checked" : ""}> Ativo</label>
       <button class="ops-button ghost" type="submit">Salvar</button>
     </form>
   `).join("");
-  weeklyHoursList.querySelectorAll("[data-week-hour]").forEach((form) => {
+  weeklyHoursList.querySelectorAll("[data-weekday]").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(form));
-      await api(`/api/admin/weekly-hours/${form.dataset.weekHour}`, {
+      const rows = payload.hours.filter((hour) => String(hour.weekday) === form.dataset.weekday);
+      await Promise.all(rows.map((hour) => api(`/api/admin/weekly-hours/${hour.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ ...data, active: Boolean(data.active) }),
-      });
+        body: JSON.stringify({
+          start_time: hour.start_time,
+          end_time: hour.end_time,
+          slot_minutes: hour.slot_minutes,
+          active: Boolean(data.active),
+        }),
+      })));
       await refreshAgenda();
     });
   });
