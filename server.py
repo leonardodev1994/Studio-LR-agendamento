@@ -273,6 +273,8 @@ PUBLIC_REVIEWS = [
     },
 ]
 CATALOG_SEED_VERSION = "2026-06-tabela-valores-v1"
+AVAILABILITY_SEED_VERSION = "2026-08-fixed-daily-slots-v2"
+DEFAULT_WEEKLY_SLOTS = ("08:00", "14:00", "20:00")
 CONSENT_TERM_VERSION = "2026-08-v1"
 MINOR_POLICY_VERSION = "2026-08-v1"
 CONSENT_TERM_TEXT = """TERMO DE CONSENTIMENTO PARA BODY PIERCING
@@ -1067,18 +1069,6 @@ def init_db():
     run_migrations(conn)
     validate_body_piercing_schema(conn)
 
-    current_hours = execute(conn, "SELECT COUNT(*) AS total FROM weekly_hours").fetchone()["total"]
-    if current_hours == 0:
-        hours = [(day, "09:00", "18:00", 90, 1) for day in range(0, 6)]
-        for hour in hours:
-            execute(
-                conn,
-                """
-                INSERT INTO weekly_hours (weekday, start_time, end_time, slot_minutes, active)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                hour,
-            )
     settings = [
         ("studio_name", "Studio LR"),
         ("instagram_url", INSTAGRAM_URL),
@@ -1102,6 +1092,22 @@ def init_db():
             """,
             setting,
         )
+    if setting_value(conn, "availability_seed_version") != AVAILABILITY_SEED_VERSION:
+        # Keep three editable rows per working day in the admin. Public
+        # availability is also restricted to these exact times in slots_for(),
+        # so legacy hourly ranges can never leak into the booking form.
+        execute(conn, "DELETE FROM weekly_hours")
+        for weekday in range(0, 6):
+            for start_time in DEFAULT_WEEKLY_SLOTS:
+                execute(
+                    conn,
+                    """
+                    INSERT INTO weekly_hours (weekday, start_time, end_time, slot_minutes, active)
+                    VALUES (?, ?, ?, ?, 1)
+                    """,
+                    (weekday, start_time, "23:59", 1440),
+                )
+        set_setting_value(conn, "availability_seed_version", AVAILABILITY_SEED_VERSION)
     sync_catalog_services(conn)
     conn.commit()
     conn.close()
@@ -1955,34 +1961,20 @@ def slots_for(date_value, service_id=None):
         conn.close()
         return []
 
-    service = None
-    if service_id:
-        service = execute(
-            conn,
-            "SELECT duration_minutes FROM services WHERE id = ? AND active = 1", (service_id,)
-        ).fetchone()
-    duration = service["duration_minutes"] if service else 90
-
-    ranges = execute(
+    working_day = execute(
         conn,
         """
-        SELECT start_time, end_time, slot_minutes
+        SELECT 1
         FROM weekly_hours
         WHERE weekday = ? AND active = 1
-        ORDER BY start_time
+        LIMIT 1
         """,
         (weekday_for(date_value),),
-    ).fetchall()
+    ).fetchone()
 
-    slots = []
-    for range_row in ranges:
-        start = to_minutes(range_row["start_time"])
-        end = to_minutes(range_row["end_time"])
-        step = range_row["slot_minutes"]
-        current = start
-        while current + duration <= end:
-            slots.append(to_time(current))
-            current += step
+    # These are the only recurring appointment times. Any other time must be
+    # deliberately created for a specific date through the extra-slots panel.
+    slots = list(DEFAULT_WEEKLY_SLOTS) if working_day else []
 
     extra = execute(
         conn,
@@ -3265,8 +3257,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.bad("Dados do horário inválidos.")
             if not start_time or not end_time:
                 return self.bad("Informe início e fim do atendimento.")
-            if slot_minutes < 15 or slot_minutes > 240:
-                return self.bad("O intervalo deve ter entre 15 e 240 minutos.")
+            if slot_minutes < 15 or slot_minutes > 1440:
+                return self.bad("O intervalo deve ter entre 15 e 1440 minutos.")
             conn = db()
             try:
                 current = execute(conn, "SELECT id FROM weekly_hours WHERE id = ?", (hour_id,)).fetchone()

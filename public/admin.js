@@ -697,7 +697,7 @@ async function loadSettings() {
       <strong>${weekdays[hour.weekday] || `Dia ${hour.weekday}`}</strong>
       <input name="start_time" type="time" value="${escapeHtml(hour.start_time)}">
       <input name="end_time" type="time" value="${escapeHtml(hour.end_time)}">
-      <input name="slot_minutes" type="number" min="15" max="240" step="15" value="${hour.slot_minutes}">
+      <input name="slot_minutes" type="number" min="15" max="1440" step="15" value="${hour.slot_minutes}">
       <label><input name="active" type="checkbox" ${hour.active ? "checked" : ""}> Ativo</label>
       <button class="ops-button ghost" type="submit">Salvar</button>
     </form>
@@ -716,7 +716,7 @@ async function loadSettings() {
 
   const blockedDays = payload.blocked_days.map((day) => `<div class="ops-mini-row"><span>Dia bloqueado: ${formatDate(day.block_date)} ${escapeHtml(day.reason || "")}</span><button class="ops-button danger" type="button" data-delete-block="${day.id}">Remover</button></div>`).join("");
   const blockedSlots = (payload.blocked_slots || []).map((slot) => `<div class="ops-mini-row"><span>Horário bloqueado: ${formatDate(slot.slot_date)} ${escapeHtml(slot.slot_time)} ${escapeHtml(slot.reason || "")}</span><button class="ops-button danger" type="button" data-delete-block-slot="${slot.id}">Remover</button></div>`).join("");
-  const extras = payload.extra_slots.map((slot) => `<div class="ops-mini-row"><span>Extra: ${formatDate(slot.slot_date)} ${escapeHtml(slot.slot_time)} ${escapeHtml(slot.note || "")}</span><button class="ops-button danger" type="button" data-delete-extra="${slot.id}">Remover</button></div>`).join("");
+  const extras = payload.extra_slots.map((slot) => `<div class="ops-mini-row"><span>Horário adicionado: ${formatDate(slot.slot_date)} ${escapeHtml(slot.slot_time)} ${escapeHtml(slot.note || "")}</span><button class="ops-button danger" type="button" data-delete-extra="${slot.id}">Remover</button></div>`).join("");
   settingsList.innerHTML = blockedDays + blockedSlots + extras || `<p class="ops-empty">Nenhum bloqueio ou extra cadastrado.</p>`;
   settingsList.querySelectorAll("[data-delete-block]").forEach((button) => button.addEventListener("click", async () => {
     await api(`/api/admin/blocked-days/${button.dataset.deleteBlock}`, { method: "DELETE" });
